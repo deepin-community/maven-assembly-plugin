@@ -26,28 +26,28 @@ import org.apache.maven.plugins.assembly.format.AssemblyFormattingException;
 import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.plugins.assembly.model.FileSet;
 import org.codehaus.plexus.archiver.Archiver;
-import org.codehaus.plexus.component.annotations.Component;
-import org.codehaus.plexus.logging.AbstractLogEnabled;
 
-import javax.annotation.Nonnull;
+import javax.inject.Named;
+import javax.inject.Singleton;
+
 import java.util.List;
 
 /**
  * Handles the &lt;fileSets/&gt; top-level section of the assembly descriptor.
  *
- * @version $Id: FileSetAssemblyPhase.java 1691831 2015-07-19 15:06:13Z rfscholte $
+ *
  */
-@Component( role = AssemblyArchiverPhase.class, hint = "file-sets" )
+@Singleton
+@Named( "file-sets" )
 public class FileSetAssemblyPhase
-    extends AbstractLogEnabled
-    implements AssemblyArchiverPhase, PhaseOrder
+        implements AssemblyArchiverPhase, PhaseOrder
 {
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void execute( @Nonnull final Assembly assembly, final Archiver archiver,
+    public void execute( final Assembly assembly, final Archiver archiver,
                          final AssemblerConfigurationSource configSource )
         throws ArchiveCreationException, AssemblyFormattingException
     {
@@ -56,8 +56,6 @@ public class FileSetAssemblyPhase
         if ( ( fileSets != null ) && !fileSets.isEmpty() )
         {
             final AddFileSetsTask task = new AddFileSetsTask( fileSets );
-
-            task.setLogger( getLogger() );
             task.execute( archiver, configSource );
         }
     }

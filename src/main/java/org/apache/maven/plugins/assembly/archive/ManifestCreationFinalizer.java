@@ -30,19 +30,17 @@ import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.jar.JarArchiver;
 import org.codehaus.plexus.archiver.jar.Manifest;
 import org.codehaus.plexus.archiver.jar.ManifestException;
-import org.codehaus.plexus.util.IOUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * @version $Id: ManifestCreationFinalizer.java 1742353 2016-05-05 03:22:53Z schulte $
+ *
  */
 public class ManifestCreationFinalizer
     extends AbstractArchiveFinalizer
@@ -81,13 +79,9 @@ public class ManifestCreationFinalizer
 
                 if ( manifestFile != null )
                 {
-                    Reader manifestFileReader = null;
-                    try
+                    try ( InputStream in = new FileInputStream( manifestFile ) )
                     {
-                        manifestFileReader = new InputStreamReader( new FileInputStream( manifestFile ), "UTF-8" );
-                        manifest = new Manifest( manifestFileReader );
-                        manifestFileReader.close();
-                        manifestFileReader = null;
+                        manifest = new Manifest( in );
                     }
                     catch ( final FileNotFoundException e )
                     {
@@ -96,10 +90,6 @@ public class ManifestCreationFinalizer
                     catch ( final IOException e )
                     {
                         throw new ArchiverException( "Error processing manifest: " + e.getMessage(), e );
-                    }
-                    finally
-                    {
-                        IOUtil.close( manifestFileReader );
                     }
                 }
                 else
@@ -136,11 +126,7 @@ public class ManifestCreationFinalizer
                     return Collections.singletonList( "META-INF/MANIFEST.MF" );
                 }
             }
-            catch ( final ManifestException ignore )
-            {
-                // noop
-            }
-            catch ( final DependencyResolutionRequiredException ignore )
+            catch ( final ManifestException | DependencyResolutionRequiredException ignore )
             {
                 // noop
             }

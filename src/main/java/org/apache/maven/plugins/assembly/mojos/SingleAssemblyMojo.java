@@ -33,16 +33,15 @@ import org.codehaus.plexus.util.xml.Xpp3Dom;
  * Assemble an application bundle or distribution from an assembly descriptor. This goal is suitable either for binding
  * to the lifecycle or calling directly from the command line (provided all required files are available before the
  * build starts, or are produced by another goal specified before this one on the command line).
- * <br />
+ * <br >
  * Note that the parameters {@code descriptors}, {@code descriptorRefs}, and {@code descriptorSourceDirectory}
  * are disjoint, i.e., they are not combined during descriptor location calculation.
  *
  * @author <a href="mailto:jdcasey@apache.org">John Casey</a>
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
- * @version $Id: SingleAssemblyMojo.java 1781812 2017-02-05 21:33:53Z michaelo $
+ *
  */
-@Mojo( name = "single", inheritByDefault = false, requiresDependencyResolution = ResolutionScope.COMPILE,
-    threadSafe = true )
+@Mojo( name = "single", requiresDependencyResolution = ResolutionScope.TEST, threadSafe = true )
 public class SingleAssemblyMojo
     extends AbstractAssemblyMojo
 {

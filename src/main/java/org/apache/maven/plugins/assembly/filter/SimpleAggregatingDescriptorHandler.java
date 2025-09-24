@@ -23,15 +23,13 @@ import org.apache.maven.plugins.assembly.utils.AssemblyFileUtils;
 import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.UnArchiver;
-import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
-import org.codehaus.plexus.logging.LogEnabled;
-import org.codehaus.plexus.logging.Logger;
-import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.codehaus.plexus.util.IOUtil;
 
-import javax.annotation.Nonnull;
+import javax.inject.Named;
+
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -39,19 +37,18 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 /**
- * @version $Id: SimpleAggregatingDescriptorHandler.java 1742353 2016-05-05 03:22:53Z schulte $
+ *
  */
-@Component( role = ContainerDescriptorHandler.class, hint = "file-aggregator", instantiationStrategy = "per-lookup" )
-public class SimpleAggregatingDescriptorHandler
-    implements ContainerDescriptorHandler, LogEnabled
+@Named( "file-aggregator" )
+public class SimpleAggregatingDescriptorHandler implements ContainerDescriptorHandler
 {
-
     // component configuration.
 
     @SuppressWarnings( "FieldCanBeLocal" )
@@ -59,7 +56,7 @@ public class SimpleAggregatingDescriptorHandler
 
     private final StringWriter aggregateWriter = new StringWriter();
 
-    private final List<String> filenames = new ArrayList<String>();
+    private final List<String> filenames = new ArrayList<>();
 
     // calculated, temporary values.
 
@@ -68,10 +65,6 @@ public class SimpleAggregatingDescriptorHandler
     private String outputPath;
 
     private boolean overrideFilterAction;
-
-    // injected by the container.
-
-    private Logger logger;
 
     @Override
     public void finalizeArchiveCreation( final Archiver archiver )
@@ -102,42 +95,41 @@ public class SimpleAggregatingDescriptorHandler
     private File writePropertiesFile()
     {
         File f;
-
-        Writer writer = null;
         try
         {
             f = File.createTempFile( "maven-assembly-plugin", "tmp" );
             f.deleteOnExit();
 
-            writer = AssemblyFileUtils.isPropertyFile( f )
-                         ? new OutputStreamWriter( new FileOutputStream( f ), "ISO-8859-1" )
-                         : new OutputStreamWriter( new FileOutputStream( f ) ); // Still platform encoding
-
-            writer.write( commentChars + " Aggregated on " + new Date() + " from: " );
-
-            for ( final String filename : filenames )
+            try ( Writer writer = getWriter( f ) )
             {
-                writer.write( "\n" + commentChars + " " + filename );
+                writer.write( commentChars + " Aggregated on " + new Date() + " from: " );
+
+                for ( final String filename : filenames )
+                {
+                    writer.write( "\n" + commentChars + " " + filename );
+                }
+
+                writer.write( "\n\n" );
+                writer.write( aggregateWriter.toString() );
             }
-
-            writer.write( "\n\n" );
-
-            writer.write( aggregateWriter.toString() );
-
-            writer.close();
-            writer = null;
         }
         catch ( final IOException e )
         {
             throw new ArchiverException(
                 "Error adding aggregated properties to finalize archive creation. Reason: " + e.getMessage(), e );
         }
-        finally
-        {
-            IOUtil.close( writer );
-        }
 
         return f;
+    }
+
+    private Writer getWriter( File f )
+        throws FileNotFoundException
+    {
+        Writer writer;
+        writer = AssemblyFileUtils.isPropertyFile( f )
+                     ? new OutputStreamWriter( new FileOutputStream( f ), StandardCharsets.ISO_8859_1 )
+                     : new OutputStreamWriter( new FileOutputStream( f ) ); // Still platform encoding
+        return writer;
     }
 
     @Override
@@ -154,7 +146,7 @@ public class SimpleAggregatingDescriptorHandler
     }
 
     @Override
-    public boolean isSelected( @Nonnull final FileInfo fileInfo )
+    public boolean isSelected( final FileInfo fileInfo )
         throws IOException
     {
         checkConfig();
@@ -189,49 +181,16 @@ public class SimpleAggregatingDescriptorHandler
     private void readProperties( final FileInfo fileInfo )
         throws IOException
     {
-        Reader reader = null;
-        StringWriter writer = null;
-        try
+        try ( StringWriter writer = new StringWriter();
+            Reader reader = AssemblyFileUtils.isPropertyFile( fileInfo.getName() )
+                ? new InputStreamReader( fileInfo.getContents(), StandardCharsets.ISO_8859_1 )
+                : new InputStreamReader( fileInfo.getContents() ) ) // platform encoding
         {
-            writer = new StringWriter();
-
-            reader = AssemblyFileUtils.isPropertyFile( fileInfo.getName() )
-                         ? new InputStreamReader( fileInfo.getContents(), "ISO-8859-1" )
-                         : new InputStreamReader( fileInfo.getContents() ); // platform encoding
-
             IOUtil.copy( reader, writer );
-
-            writer.close();
             final String content = writer.toString();
-            writer = null;
-
-            reader.close();
-            reader = null;
-
             aggregateWriter.write( "\n" );
             aggregateWriter.write( content );
         }
-        finally
-        {
-            IOUtil.close( writer );
-            IOUtil.close( reader );
-        }
-    }
-
-    protected final Logger getLogger()
-    {
-        if ( logger == null )
-        {
-            logger = new ConsoleLogger( Logger.LEVEL_INFO, "" );
-        }
-
-        return logger;
-    }
-
-    @Override
-    public void enableLogging( final Logger logger )
-    {
-        this.logger = logger;
     }
 
     @SuppressWarnings( "UnusedDeclaration" )

@@ -25,18 +25,19 @@
 ~~ under the License.
 
 ~~ NOTE: For help with the syntax of this file, see:
-~~ http://maven.apache.org/doxia/references/apt-format.html
+~~ https://maven.apache.org/doxia/references/apt-format.html
 
 ${project.name}
 
 * Introduction
 
-  The Assembly Plugin for Maven is primarily intended to allow users to
-  aggregate the project output along with its dependencies, modules, site
-  documentation, and other files into a single distributable archive.
+  The Assembly Plugin for Maven enables developers to
+  combine project output into a single distributable archive
+  that also contains dependencies, modules, site
+  documentation, and other files.
 
-  Your project can build distribution "assemblies" easily, using one of the
-  convenient, {{{./descriptor-refs.html}prefabricated assembly descriptors}}.
+  Your project can easily build distribution "assemblies" using one of the
+  {{{./descriptor-refs.html}prefabricated assembly descriptors}}.
   These descriptors handle many common operations, such as packaging a project's
   artifact along with generated documentation into a
   {{{./descriptor-refs.html#bin}single zip archive}}.
@@ -68,7 +69,7 @@ ${project.name}
 
   If your project wants to package your artifact in an uber-jar, the assembly
   plugin provides only basic support. For more control, use the
-  {{{http://maven.apache.org/plugins/maven-shade-plugin/} Maven Shade Plugin}}.
+  {{{/plugins/maven-shade-plugin/} Maven Shade Plugin}}.
 
   To use the Assembly Plugin in Maven, you simply need to:
 
@@ -112,23 +113,29 @@ ${project.name}
 
 * Assembly and Component Descriptor Schemas (XSD)
 
-  * {{{http://maven.apache.org/xsd/assembly-2.0.0.xsd}http://maven.apache.org/xsd/assembly-2.0.0.xsd}},
-    {{{http://maven.apache.org/xsd/assembly-component-2.0.0.xsd}http://maven.apache.org/xsd/assembly-component-2.0.0.xsd}} (for version 3.0 and higher)
+  * {{{/xsd/assembly-2.1.1.xsd}https://maven.apache.org/xsd/assembly-2.1.1.xsd}},
+    {{{/xsd/assembly-component-2.1.1.xsd}https://maven.apache.org/xsd/assembly-component-2.1.1.xsd}} (for version 3.4.0 and higher)
 
-  * {{{http://maven.apache.org/xsd/assembly-1.1.3.xsd}http://maven.apache.org/xsd/assembly-1.1.3.xsd}},
-    {{{http://maven.apache.org/xsd/component-1.1.3.xsd}http://maven.apache.org/xsd/component-1.1.3.xsd}} (for version 2.5.4 and higher)
+  * {{{/xsd/assembly-2.1.0.xsd}https://maven.apache.org/xsd/assembly-2.1.0.xsd}},
+    {{{/xsd/assembly-component-2.1.0.xsd}https://maven.apache.org/xsd/assembly-component-2.1.0.xsd}} (for version 3.2 and higher)
 
-  * {{{http://maven.apache.org/xsd/assembly-1.1.2.xsd}http://maven.apache.org/xsd/assembly-1.1.2.xsd}},
-    {{{http://maven.apache.org/xsd/component-1.1.2.xsd}http://maven.apache.org/xsd/component-1.1.2.xsd}} (for version 2.2 and higher)
+  * {{{/xsd/assembly-2.0.0.xsd}https://maven.apache.org/xsd/assembly-2.0.0.xsd}},
+    {{{/xsd/assembly-component-2.0.0.xsd}https://maven.apache.org/xsd/assembly-component-2.0.0.xsd}} (for version 3.0 and higher)
 
-  * {{{http://maven.apache.org/xsd/assembly-1.1.1.xsd}http://maven.apache.org/xsd/assembly-1.1.1.xsd}},
-    {{{http://maven.apache.org/xsd/component-1.1.1.xsd}http://maven.apache.org/xsd/component-1.1.1.xsd}} (for version 2.2-beta-4 - 2.2-beta-5)
+  * {{{/xsd/assembly-1.1.3.xsd}https://maven.apache.org/xsd/assembly-1.1.3.xsd}},
+    {{{/xsd/component-1.1.3.xsd}https://maven.apache.org/xsd/component-1.1.3.xsd}} (for version 2.5.4 and higher)
 
-  * {{{http://maven.apache.org/xsd/assembly-1.1.0.xsd}http://maven.apache.org/xsd/assembly-1.1.0.xsd}},
-    {{{http://maven.apache.org/xsd/component-1.1.0.xsd}http://maven.apache.org/xsd/component-1.1.0.xsd}} (for version 2.2-beta-1 - 2.2-beta-3)
+  * {{{/xsd/assembly-1.1.2.xsd}https://maven.apache.org/xsd/assembly-1.1.2.xsd}},
+    {{{/xsd/component-1.1.2.xsd}https://maven.apache.org/xsd/component-1.1.2.xsd}} (for version 2.2 and higher)
 
-  * {{{http://maven.apache.org/xsd/assembly-1.0.0.xsd}http://maven.apache.org/xsd/assembly-1.0.0.xsd}},
-    {{{http://maven.apache.org/xsd/component-1.0.0.xsd}http://maven.apache.org/xsd/component-1.0.0.xsd}} (for version 2.1 and lower)
+  * {{{/xsd/assembly-1.1.1.xsd}https://maven.apache.org/xsd/assembly-1.1.1.xsd}},
+    {{{/xsd/component-1.1.1.xsd}https://maven.apache.org/xsd/component-1.1.1.xsd}} (for version 2.2-beta-4 - 2.2-beta-5)
+
+  * {{{/xsd/assembly-1.1.0.xsd}https://maven.apache.org/xsd/assembly-1.1.0.xsd}},
+    {{{/xsd/component-1.1.0.xsd}https://maven.apache.org/xsd/component-1.1.0.xsd}} (for version 2.2-beta-1 - 2.2-beta-3)
+
+  * {{{/xsd/assembly-1.0.0.xsd}https://maven.apache.org/xsd/assembly-1.0.0.xsd}},
+    {{{/xsd/component-1.0.0.xsd}https://maven.apache.org/xsd/component-1.0.0.xsd}} (for version 2.1 and lower)
 
   []
 
@@ -139,17 +146,17 @@ ${project.name}
   specific use cases are described in the examples given below.
 
   In case you still have questions regarding the plugin's usage, please have a look at the {{{./faq.html}FAQ}} and feel
-  free to contact the {{{./mail-lists.html}user mailing list}}. The posts to the mailing list are archived and could
+  free to contact the {{{./mailing-lists.html}user mailing list}}. The posts to the mailing list are archived and could
   already contain the answer to your question as part of an older thread. Hence, it is also worth browsing/searching
-  the {{{./mail-lists.html}mail archive}}.
+  the {{{./mailing-lists.html}mail archive}}.
 
-  If you feel like the plugin is missing a feature or has a defect, you can fill a feature request or bug report in our
-  {{{./issue-tracking.html}issue tracker}}. When creating a new issue, please provide a comprehensive description of your
+  If you feel the plugin is missing a feature or has a defect, you can file a feature request or bug report in our
+  {{{./issue-management.html}issue tracker}}. When creating a new issue, please provide a comprehensive description of your
   concern. Especially for fixing bugs it is crucial that the developers can reproduce your problem. For this reason,
   entire debug logs, POMs or most preferably little demo projects attached to the issue are very much appreciated.
   Of course, patches are welcome, too. Contributors can check out the project from our
-  {{{./source-repository.html}source repository}} and will find supplementary information in the
-  {{{http://maven.apache.org/guides/development/guide-helping.html}guide to helping with Maven}}.
+  {{{./scm.html}source repository}} and will find supplementary information in the
+  {{{/guides/development/guide-helping.html}guide to helping with Maven}}.
 
 
 * Examples

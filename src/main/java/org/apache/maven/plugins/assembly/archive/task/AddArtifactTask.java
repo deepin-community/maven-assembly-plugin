@@ -31,9 +31,10 @@ import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.util.DefaultArchivedFileSet;
 import org.codehaus.plexus.archiver.util.DefaultFileSet;
 import org.codehaus.plexus.components.io.functions.InputStreamTransformer;
-import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.FileUtils;
 import org.codehaus.plexus.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,16 +42,15 @@ import java.nio.charset.Charset;
 import java.util.List;
 
 /**
- * @version $Id: AddArtifactTask.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public class AddArtifactTask
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger( AddArtifactTask.class );
 
     public static final String[] DEFAULT_INCLUDES_ARRAY = { "**/*" };
 
     private final Artifact artifact;
-
-    private final Logger logger;
 
     private final InputStreamTransformer transformer;
 
@@ -66,6 +66,8 @@ public class AddArtifactTask
 
     private List<String> excludes;
 
+    private boolean usingDefaultExcludes = true;
+
     private MavenProject project;
 
     private MavenProject moduleProject;
@@ -76,18 +78,17 @@ public class AddArtifactTask
 
     private String outputFileNameMapping;
 
-    public AddArtifactTask( final Artifact artifact, final Logger logger, InputStreamTransformer transformer,
+    public AddArtifactTask( final Artifact artifact, InputStreamTransformer transformer,
                             Charset encoding )
     {
         this.artifact = artifact;
-        this.logger = logger;
         this.transformer = transformer;
         this.encoding = encoding;
     }
 
-    public AddArtifactTask( final Artifact artifact, final Logger logger, Charset encoding )
+    public AddArtifactTask( final Artifact artifact, Charset encoding )
     {
-        this( artifact, logger, null, encoding );
+        this( artifact, null, encoding );
     }
 
     public void execute( final Archiver archiver, final AssemblerConfigurationSource configSource )
@@ -162,7 +163,7 @@ public class AddArtifactTask
         {
             final File artifactFile = artifact.getFile();
 
-            logger.debug(
+            LOGGER.debug(
                 "Adding artifact: " + artifact.getId() + " with file: " + artifactFile + " to assembly location: "
                     + outputLocation + "." );
 
@@ -205,25 +206,26 @@ public class AddArtifactTask
             final File artifactFile = artifact.getFile();
             if ( artifactFile == null )
             {
-                logger.warn(
+                LOGGER.warn(
                     "Skipping artifact: " + artifact.getId() + "; it does not have an associated file or directory." );
             }
             else if ( artifactFile.isDirectory() )
             {
-                logger.debug( "Adding artifact directory contents for: " + artifact + " to: " + outputLocation );
+                LOGGER.debug( "Adding artifact directory contents for: " + artifact + " to: " + outputLocation );
 
                 DefaultFileSet fs = DefaultFileSet.fileSet( artifactFile );
                 fs.setIncludes( includesArray );
                 fs.setExcludes( excludesArray );
                 fs.setPrefix( outputLocation );
                 fs.setStreamTransformer( transformer );
+                fs.setUsingDefaultExcludes( usingDefaultExcludes );
                 archiver.addFileSet( fs );
             }
             else
             {
-                logger.debug( "Unpacking artifact contents for: " + artifact + " to: " + outputLocation );
-                logger.debug( "includes:\n" + StringUtils.join( includesArray, "\n" ) + "\n" );
-                logger.debug(
+                LOGGER.debug( "Unpacking artifact contents for: " + artifact + " to: " + outputLocation );
+                LOGGER.debug( "includes:\n" + StringUtils.join( includesArray, "\n" ) + "\n" );
+                LOGGER.debug(
                     "excludes:\n" + ( excludesArray == null ? "none" : StringUtils.join( excludesArray, "\n" ) )
                         + "\n" );
                 DefaultArchivedFileSet afs = DefaultArchivedFileSet.archivedFileSet( artifactFile );
@@ -231,6 +233,7 @@ public class AddArtifactTask
                 afs.setExcludes( excludesArray );
                 afs.setPrefix( outputLocation );
                 afs.setStreamTransformer( transformer );
+                afs.setUsingDefaultExcludes( usingDefaultExcludes );
                 archiver.addArchivedFileSet( afs, encoding );
             }
         }
@@ -247,7 +250,8 @@ public class AddArtifactTask
         final File tempRoot = configSource.getTemporaryRootDirectory();
         final File tempArtifactFile = new File( tempRoot, artifact.getFile().getName() );
 
-        logger.warn( "Artifact: " + artifact.getId() + " references the same file as the assembly destination file. "
+        LOGGER.warn(
+                "Artifact: " + artifact.getId() + " references the same file as the assembly destination file. "
                          + "Moving it to a temporary location for inclusion." );
         try
         {
@@ -281,6 +285,11 @@ public class AddArtifactTask
     public void setExcludes( final List<String> excludes )
     {
         this.excludes = excludes;
+    }
+
+    public void setUsingDefaultExcludes( boolean usingDefaultExcludes )
+    {
+        this.usingDefaultExcludes = usingDefaultExcludes;
     }
 
     public void setIncludes( final List<String> includes )

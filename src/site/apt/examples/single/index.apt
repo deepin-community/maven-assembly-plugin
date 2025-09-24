@@ -24,11 +24,11 @@
 ~~ under the License.
 
 ~~ NOTE: For help with the syntax of this file, see:
-~~ http://maven.apache.org/doxia/references/apt-format.html
+~~ https://maven.apache.org/doxia/references/apt-format.html
 
 Single Project Examples
 
-  A Single Project is a project whose assemblies does not use \<moduleSets\>.
+  A Single Project is a project whose assemblies do not use \<moduleSets\>.
 
   The examples below may help you in creating assemblies for your single
   projects.

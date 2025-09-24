@@ -34,16 +34,19 @@ import org.codehaus.plexus.components.io.fileselectors.FileInfo;
 import org.codehaus.plexus.components.io.fileselectors.FileSelector;
 import org.codehaus.plexus.components.io.resources.PlexusIoResource;
 import org.codehaus.plexus.components.io.resources.PlexusIoResourceCollection;
-import org.codehaus.plexus.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -56,17 +59,15 @@ import java.util.Map;
  * </ul>
  *
  * @author jdcasey
- * @version $Id: AssemblyProxyArchiver.java 1694836 2015-08-08 18:35:14Z rfscholte $
+ *
  */
-public class AssemblyProxyArchiver
-    implements Archiver
+public class AssemblyProxyArchiver implements Archiver
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger( AssemblyProxyArchiver.class );
 
     private final Archiver delegate;
 
-    private final ThreadLocal<Boolean> inPublicApi = new ThreadLocal<Boolean>();
-
-    private final Logger logger;
+    private final ThreadLocal<Boolean> inPublicApi = new ThreadLocal<>();
 
     private final String assemblyWorkPath;
 
@@ -84,21 +85,19 @@ public class AssemblyProxyArchiver
     public AssemblyProxyArchiver( final String rootPrefix, final Archiver delegate,
                                   final List<ContainerDescriptorHandler> containerDescriptorHandlers,
                                   final List<FileSelector> extraSelectors, final List<ArchiveFinalizer> extraFinalizers,
-                                  final File assemblyWorkDir, final Logger logger )
+                                  final File assemblyWorkDir )
     {
         this.rootPrefix = rootPrefix;
         this.delegate = delegate;
 
         assemblyWorkPath = assemblyWorkDir.getAbsolutePath().replace( '\\', '/' );
 
-        this.logger = logger;
-
         if ( !"".equals( rootPrefix ) && !rootPrefix.endsWith( "/" ) )
         {
             this.rootPrefix += "/";
         }
 
-        final List<FileSelector> selectors = new ArrayList<FileSelector>();
+        final List<FileSelector> selectors = new ArrayList<>();
 
         FinalizerEnabled finalizer = ( delegate instanceof FinalizerEnabled ) ? (FinalizerEnabled) delegate : null;
 
@@ -117,10 +116,7 @@ public class AssemblyProxyArchiver
 
         if ( extraSelectors != null )
         {
-            for ( final FileSelector selector : extraSelectors )
-            {
-                selectors.add( selector );
-            }
+            selectors.addAll( extraSelectors );
         }
 
         if ( ( extraFinalizers != null ) && finalizer != null )
@@ -133,7 +129,7 @@ public class AssemblyProxyArchiver
 
         if ( !selectors.isEmpty() )
         {
-            this.selectors = selectors.toArray( new FileSelector[selectors.size()] );
+            this.selectors = selectors.toArray( new FileSelector[0] );
         }
     }
 
@@ -141,7 +137,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addArchivedFileSet( @Nonnull final File archiveFile, final String prefix, final String[] includes,
+    public void addArchivedFileSet( final File archiveFile, final String prefix, final String[] includes,
                                     final String[] excludes )
     {
         inPublicApi.set( Boolean.TRUE );
@@ -166,9 +162,9 @@ public class AssemblyProxyArchiver
 
     private void debug( final String message )
     {
-        if ( ( logger != null ) && logger.isDebugEnabled() )
+        if ( LOGGER.isDebugEnabled() )
         {
-            logger.debug( message );
+            LOGGER.debug( message );
         }
     }
 
@@ -176,7 +172,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addArchivedFileSet( @Nonnull final File archiveFile, final String prefix )
+    public void addArchivedFileSet( final File archiveFile, final String prefix )
     {
         inPublicApi.set( Boolean.TRUE );
         try
@@ -226,7 +222,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addArchivedFileSet( @Nonnull final File archiveFile )
+    public void addArchivedFileSet( final File archiveFile )
     {
         inPublicApi.set( Boolean.TRUE );
         try
@@ -250,7 +246,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addDirectory( @Nonnull final File directory, final String prefix, final String[] includes,
+    public void addDirectory( final File directory, final String prefix, final String[] includes,
                               final String[] excludes )
     {
         inPublicApi.set( Boolean.TRUE );
@@ -314,7 +310,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addDirectory( @Nonnull final File directory, final String prefix )
+    public void addDirectory( final File directory, final String prefix )
     {
         inPublicApi.set( Boolean.TRUE );
         try
@@ -339,7 +335,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addDirectory( @Nonnull final File directory, final String[] includes, final String[] excludes )
+    public void addDirectory( final File directory, final String[] includes, final String[] excludes )
     {
         inPublicApi.set( Boolean.TRUE );
         try
@@ -366,7 +362,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addDirectory( @Nonnull final File directory )
+    public void addDirectory( final File directory )
     {
         inPublicApi.set( Boolean.TRUE );
         try
@@ -391,7 +387,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addFile( @Nonnull final File inputFile, @Nonnull final String destFileName, final int permissions )
+    public void addFile( final File inputFile, final String destFileName, final int permissions )
     {
         if ( acceptFile( inputFile ) )
         {
@@ -413,7 +409,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addFile( @Nonnull final File inputFile, @Nonnull final String destFileName )
+    public void addFile( final File inputFile, final String destFileName )
     {
         if ( acceptFile( inputFile ) )
         {
@@ -707,7 +703,7 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    public void addFileSet( @Nonnull final FileSet fileSet )
+    public void addFileSet( final FileSet fileSet )
     {
         inPublicApi.set( Boolean.TRUE );
         try
@@ -730,11 +726,12 @@ public class AssemblyProxyArchiver
 
         if ( fsPath.equals( assemblyWorkPath ) )
         {
-            logger.debug( "SKIPPING fileset with source directory matching assembly working-directory: " + fsPath );
+            LOGGER.debug(
+                    "SKIPPING fileset with source directory matching assembly working-directory: " + fsPath );
         }
         else if ( assemblyWorkPath.startsWith( fsPath ) )
         {
-            final List<String> newEx = new ArrayList<String>();
+            final List<String> newEx = new ArrayList<>();
             if ( fs.getExcludes() != null )
             {
                 newEx.addAll( Arrays.asList( fs.getExcludes() ) );
@@ -742,13 +739,13 @@ public class AssemblyProxyArchiver
 
             final String workDirExclude = assemblyWorkPath.substring( fsPath.length() + 1 );
 
-            logger.debug(
+            LOGGER.debug(
                 "Adding exclude for assembly working-directory: " + workDirExclude + "\nFile-Set source directory: "
                     + fsPath );
 
             newEx.add( workDirExclude );
 
-            final List<String> newIn = new ArrayList<String>();
+            final List<String> newIn = new ArrayList<>();
             if ( fs.getIncludes() != null )
             {
                 for ( final String include : fs.getIncludes() )
@@ -764,12 +761,12 @@ public class AssemblyProxyArchiver
 
             dfs.setCaseSensitive( fs.isCaseSensitive() );
             dfs.setDirectory( fs.getDirectory() );
-            dfs.setExcludes( newEx.toArray( new String[newEx.size()] ) );
+            dfs.setExcludes( newEx.toArray( new String[0] ) );
             dfs.setFileSelectors( fs.getFileSelectors() );
-            dfs.setIncludes( newIn.toArray( new String[newIn.size()] ) );
+            dfs.setIncludes( newIn.toArray( new String[0] ) );
             dfs.setIncludingEmptyDirectories( fs.isIncludingEmptyDirectories() );
             dfs.setPrefix( fs.getPrefix() );
-            dfs.setUsingDefaultExcludes( fs.isUsingDefaultExcludes() );
+            dfs.setStreamTransformer( fs.getStreamTransformer() );
 
             delegate.addFileSet( dfs );
         }
@@ -851,7 +848,6 @@ public class AssemblyProxyArchiver
      * {@inheritDoc}
      */
     @Override
-    @Nonnull
     public ResourceIterator getResources()
     {
         return delegate.getResources();
@@ -1032,4 +1028,93 @@ public class AssemblyProxyArchiver
         }
     }
 
+    @Override
+    public void setLastModifiedDate( Date lastModifiedDate )
+    {
+        delegate.setLastModifiedDate( lastModifiedDate );
+    }
+
+    @Override
+    public Date getLastModifiedDate()
+    {
+        return delegate.getLastModifiedDate();
+    }
+
+    @Override
+    public void setFilenameComparator( Comparator<String> filenameComparator )
+    {
+        delegate.setFilenameComparator( filenameComparator );
+    }
+
+    @Override
+    public void configureReproducible( Date outputTimestamp )
+    {
+        delegate.configureReproducible( outputTimestamp );
+    }
+
+    @Override
+    public void setOverrideUid( int uid )
+    {
+        delegate.setOverrideUid( uid );
+    }
+
+    @Override
+    public void setOverrideUserName( String userName )
+    {
+        delegate.setOverrideUserName( userName );
+    }
+
+    @Override
+    public int getOverrideUid()
+    {
+        return delegate.getOverrideUid();
+    }
+
+    @Override
+    public String getOverrideUserName()
+    {
+        return delegate.getOverrideUserName();
+    }
+
+    @Override
+    public void setOverrideGid( int gid )
+    {
+        delegate.setOverrideGid( gid );
+    }
+
+    @Override
+    public void setOverrideGroupName( String groupName )
+    {
+        delegate.setOverrideGroupName( groupName );
+    }
+
+    @Override
+    public int getOverrideGid()
+    {
+        return delegate.getOverrideGid();
+    }
+
+    @Override
+    public String getOverrideGroupName()
+    {
+        return delegate.getOverrideGroupName();
+    }
+
+    @Override
+    public void setLastModifiedTime( FileTime fileTime )
+    {
+        delegate.setLastModifiedTime( fileTime );
+    }
+
+    @Override
+    public FileTime getLastModifiedTime()
+    {
+        return delegate.getLastModifiedTime();
+    }
+
+    @Override
+    public void configureReproducibleBuild( FileTime fileTime )
+    {
+        delegate.configureReproducibleBuild( fileTime );
+    }
 }

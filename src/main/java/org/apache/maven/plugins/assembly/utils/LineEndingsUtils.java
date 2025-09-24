@@ -19,12 +19,6 @@ package org.apache.maven.plugins.assembly.utils;
  * under the License.
  */
 
-import org.apache.maven.plugins.assembly.format.AssemblyFormattingException;
-import org.codehaus.plexus.util.IOUtil;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -35,6 +29,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.RandomAccessFile;
+
+import org.apache.maven.plugins.assembly.format.AssemblyFormattingException;
 
 /**
  * Line Ending class which contains convenience methods to change line endings.
@@ -61,8 +57,8 @@ public final class LineEndingsUtils
      * @param encoding    The encoding to use, null for platform encoding
      * @throws IOException .
      */
-    public static void convertLineEndings( @Nonnull File source, @Nonnull File dest, LineEndings lineEndings,
-                                           Boolean atEndOfFile, String encoding )
+    public static void convertLineEndings( final File source, File dest, LineEndings lineEndings,
+                                           final Boolean atEndOfFile, String encoding )
         throws IOException
     {
         // MASSEMBLY-637, MASSEMBLY-96
@@ -72,31 +68,15 @@ public final class LineEndingsUtils
         String eofChars = "";
         if ( atEndOfFile == null )
         {
-            RandomAccessFile raf = null;
-            try
+            if ( source.length() >= 1 )
             {
-                if ( source.length() >= 1 )
+                try ( RandomAccessFile raf = new RandomAccessFile( source, "r" ) )
                 {
-                    raf = new RandomAccessFile( source, "r" );
                     raf.seek( source.length() - 1 );
                     byte last = raf.readByte();
                     if ( last == '\n' )
                     {
                         eofChars = lineEndings.getLineEndingCharacters();
-                    }
-                }
-            }
-            finally
-            {
-                if ( raf != null )
-                {
-                    try
-                    {
-                        raf.close();
-                    }
-                    catch ( IOException ex )
-                    {
-                        // ignore
                     }
                 }
             }
@@ -106,26 +86,10 @@ public final class LineEndingsUtils
             eofChars = lineEndings.getLineEndingCharacters();
         }
 
-        BufferedReader in = null;
-        BufferedWriter out = null;
-        try
+        try ( BufferedReader in = getBufferedReader( source, encoding );
+              BufferedWriter out = getBufferedWriter( dest, encoding ) )
         {
-            if ( encoding == null )
-            {
-                // platform encoding
-                in = new BufferedReader( new InputStreamReader( new FileInputStream( source ) ) );
-                out = new BufferedWriter( new OutputStreamWriter( new FileOutputStream( dest ) ) );
-            }
-            else
-            {
-                // MASSEMBLY-371
-                in = new BufferedReader( new InputStreamReader( new FileInputStream( source ), encoding ) );
-                out = new BufferedWriter( new OutputStreamWriter( new FileOutputStream( dest ), encoding ) );
-            }
-
-            String line;
-
-            line = in.readLine();
+            String line = in.readLine();
             while ( line != null )
             {
                 out.write( line );
@@ -139,16 +103,34 @@ public final class LineEndingsUtils
                     out.write( eofChars );
                 }
             }
-
-            out.close();
-            out = null;
-            in.close();
-            in = null;
         }
-        finally
+    }
+
+    private static BufferedReader getBufferedReader( File source, String encoding ) throws IOException
+    {
+        if ( encoding == null )
         {
-            IOUtil.close( in );
-            IOUtil.close( out );
+            // platform encoding
+            return new BufferedReader( new InputStreamReader( new FileInputStream( source ) ) );
+        }
+        else
+        {
+            // MASSEMBLY-371
+            return new BufferedReader( new InputStreamReader( new FileInputStream( source ), encoding ) );
+        }
+    }
+
+    private static BufferedWriter getBufferedWriter( File dest, String encoding ) throws IOException
+    {
+        if ( encoding == null )
+        {
+            // platform encoding
+            return new BufferedWriter( new OutputStreamWriter( new FileOutputStream( dest ) ) );
+        }
+        else
+        {
+            // MASSEMBLY-371
+            return new BufferedWriter( new OutputStreamWriter( new FileOutputStream( dest ), encoding ) );
         }
     }
 
@@ -161,7 +143,7 @@ public final class LineEndingsUtils
      * @return an input stream that enforces a specifi line ending style
      */
     @SuppressWarnings( "resource" )
-    public static InputStream lineEndingConverter( @Nonnull InputStream in, LineEndings lineEndings )
+    public static InputStream lineEndingConverter( InputStream in, LineEndings lineEndings )
         throws IOException
     {
         return lineEndings.isNewLine()
@@ -169,8 +151,7 @@ public final class LineEndingsUtils
             : lineEndings.isCrLF() ? new WindowsLineFeedInputStream( in, false ) : in;
     }
 
-    @Nonnull
-    public static LineEndings getLineEnding( @Nullable String lineEnding )
+    public static LineEndings getLineEnding( /* nullable */ String lineEnding )
         throws AssemblyFormattingException
     {
         LineEndings result = LineEndings.keep;
@@ -196,16 +177,13 @@ public final class LineEndingsUtils
      * @return The proper line ending characters
      * @throws AssemblyFormattingException
      */
-    @Nullable
-    public static String getLineEndingCharacters( @Nullable String lineEnding )
+    public static String getLineEndingCharacters( /* nullable */ String lineEnding )
         throws AssemblyFormattingException
     {
-
         String value = lineEnding;
 
         if ( lineEnding != null )
         {
-
             try
             {
                 value = LineEndings.valueOf( lineEnding ).getLineEndingCharacters();

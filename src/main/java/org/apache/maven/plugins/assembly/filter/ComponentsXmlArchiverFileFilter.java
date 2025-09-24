@@ -19,28 +19,26 @@ package org.apache.maven.plugins.assembly.filter;
  * under the License.
  */
 
-import org.apache.maven.shared.utils.ReaderFactory;
-import org.apache.maven.shared.utils.WriterFactory;
+import org.apache.commons.io.input.XmlStreamReader;
+import org.apache.commons.io.output.XmlStreamWriter;
 import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.archiver.ResourceIterator;
 import org.codehaus.plexus.archiver.UnArchiver;
-import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
-import org.codehaus.plexus.util.IOUtil;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.codehaus.plexus.util.xml.Xpp3DomBuilder;
 import org.codehaus.plexus.util.xml.Xpp3DomWriter;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
-import javax.annotation.Nonnull;
+import javax.inject.Named;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,9 +48,9 @@ import java.util.Map;
  * Components XML file filter.
  *
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
- * @version $Id: ComponentsXmlArchiverFileFilter.java 1742353 2016-05-05 03:22:53Z schulte $
+ *
  */
-@Component( role = ContainerDescriptorHandler.class, hint = "plexus", instantiationStrategy = "per-lookup" )
+@Named( "plexus" )
 public class ComponentsXmlArchiverFileFilter
     implements ContainerDescriptorHandler
 {
@@ -83,7 +81,7 @@ public class ComponentsXmlArchiverFileFilter
             {
                 if ( components == null )
                 {
-                    components = new LinkedHashMap<String, Xpp3Dom>();
+                    components = new LinkedHashMap<>();
                 }
 
                 final String role = component.getChild( "role" ).getValue();
@@ -107,10 +105,9 @@ public class ComponentsXmlArchiverFileFilter
             final File f = File.createTempFile( "maven-assembly-plugin", "tmp" );
             f.deleteOnExit();
 
-            Writer fileWriter = null;
-            try
+            
+            try ( Writer fileWriter = new XmlStreamWriter( Files.newOutputStream( f.toPath() ) ) )
             {
-                fileWriter = WriterFactory.newXmlWriter( new FileOutputStream( f ) );
                 final Xpp3Dom dom = new Xpp3Dom( "component-set" );
                 final Xpp3Dom componentDom = new Xpp3Dom( "components" );
                 dom.addChild( componentDom );
@@ -121,13 +118,6 @@ public class ComponentsXmlArchiverFileFilter
                 }
 
                 Xpp3DomWriter.write( fileWriter, dom );
-
-                fileWriter.close();
-                fileWriter = null;
-            }
-            finally
-            {
-                IOUtil.close( fileWriter );
             }
 
             excludeOverride = true;
@@ -173,7 +163,7 @@ public class ComponentsXmlArchiverFileFilter
     }
 
     @Override
-    public boolean isSelected( @Nonnull final FileInfo fileInfo )
+    public boolean isSelected( final FileInfo fileInfo )
         throws IOException
     {
         if ( fileInfo.isFile() )
@@ -192,27 +182,17 @@ public class ComponentsXmlArchiverFileFilter
 
             if ( ComponentsXmlArchiverFileFilter.COMPONENTS_XML_PATH.equals( entry ) )
             {
-                Reader reader = null;
-                try
+                try ( Reader reader = new BufferedReader( new XmlStreamReader( fileInfo.getContents() ) ) )
                 {
-                    reader = new BufferedReader( ReaderFactory.newXmlReader( fileInfo.getContents() ) );
                     addComponentsXml( reader );
-                    reader.close();
-                    reader = null;
                 }
                 catch ( final XmlPullParserException e )
                 {
                     final IOException error =
-                        new IOException( "Error finalizing component-set for archive. Reason: " + e.getMessage() );
-                    error.initCause( e );
+                        new IOException( "Error finalizing component-set for archive. Reason: " + e.getMessage(), e );
 
                     throw error;
                 }
-                finally
-                {
-                    IOUtil.close( reader );
-                }
-
                 return false;
             }
             else

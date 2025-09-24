@@ -19,19 +19,13 @@ package org.apache.maven.plugins.assembly.utils;
  * under the License.
  */
 
-import org.apache.maven.plugins.assembly.archive.ArchiveExpansionException;
-import org.codehaus.plexus.archiver.ArchiverException;
-import org.codehaus.plexus.archiver.UnArchiver;
-import org.codehaus.plexus.archiver.manager.ArchiverManager;
-import org.codehaus.plexus.archiver.manager.NoSuchArchiverException;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
 
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.util.Locale;
 
 /**
- * @version $Id: AssemblyFileUtils.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public final class AssemblyFileUtils
 {
@@ -82,7 +76,7 @@ public final class AssemblyFileUtils
     }
 
     @SuppressWarnings( "ResultOfMethodCallIgnored" )
-    public static void verifyTempDirectoryAvailability( @Nonnull final File tempDir )
+    public static void verifyTempDirectoryAvailability( final File tempDir )
     {
         if ( !tempDir.exists() )
         {
@@ -90,39 +84,12 @@ public final class AssemblyFileUtils
         }
     }
 
-    /**
-     * Unpacks the archive file.
-     *
-     * @param source  File to be unpacked.
-     * @param destDir Location where to put the unpacked files.
-     */
-    public static void unpack( File source, File destDir, ArchiverManager archiverManager )
-        throws ArchiveExpansionException, NoSuchArchiverException
-    {
-        try
-        {
-            UnArchiver unArchiver = archiverManager.getUnArchiver( source );
-
-            unArchiver.setSourceFile( source );
-
-            unArchiver.setDestDirectory( destDir );
-
-            unArchiver.extract();
-        }
-        catch ( ArchiverException e )
-        {
-            throw new ArchiveExpansionException( "Error unpacking file: " + source + "to: " + destDir, e );
-        }
-    }
-
-    @Nonnull
-    private static String normalizePath( @Nonnull String path )
+    private static String normalizePath( String path )
     {
         return path.replace( '\\', '/' );
     }
 
-    @Nonnull
-    public static String normalizeFileInfo( @Nonnull FileInfo fileInfo )
+    public static String normalizeFileInfo( FileInfo fileInfo )
     {
         String name = fileInfo.getName();
         name = normalizePath( name );
@@ -137,5 +104,19 @@ public final class AssemblyFileUtils
     public static boolean isPropertyFile( File file )
     {
         return isPropertyFile( file.getName() );
+    }
+
+    /**
+     * This method exists because {@link File#isAbsolute()} is not OS independent.
+     *
+     * In addition to the check in {@link File#isAbsolute()} we will also test for a leading '/'.
+     *
+     * @return {@code true} if {@code File#isAbsolute()} or starts with a '/'
+     */
+    public static boolean isAbsolutePath( File dir )
+    {
+        return dir != null
+                && ( dir.isAbsolute()
+                   || dir.getPath().startsWith( "\\" ) ); // on Win* platforms
     }
 }

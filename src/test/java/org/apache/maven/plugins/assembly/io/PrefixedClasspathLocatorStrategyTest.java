@@ -19,23 +19,22 @@ package org.apache.maven.plugins.assembly.io;
  * under the License.
  */
 
-import junit.framework.TestCase;
-import org.apache.maven.shared.io.location.Location;
-import org.apache.maven.shared.io.location.LocatorStrategy;
-import org.apache.maven.shared.io.logging.DefaultMessageHolder;
-import org.apache.maven.shared.io.logging.MessageHolder;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * @author Benjamin Bentmann
  */
 public class PrefixedClasspathLocatorStrategyTest
-    extends TestCase
 {
+    
+    private MessageHolder mh = new DefaultMessageHolder();
 
+    @Test
     public void testResolvePrefixWithLeadingSlashAndWithTrailingSlash()
     {
-        MessageHolder mh = new DefaultMessageHolder();
-
         LocatorStrategy ls = new PrefixedClasspathLocatorStrategy( "/assemblies/" );
         Location location = ls.resolve( "empty.xml", mh );
 
@@ -43,10 +42,9 @@ public class PrefixedClasspathLocatorStrategyTest
         assertEquals( 0, mh.size() );
     }
 
+    @Test
     public void testResolvePrefixWithLeadingSlashAndWithoutTrailingSlash()
     {
-        MessageHolder mh = new DefaultMessageHolder();
-
         LocatorStrategy ls = new PrefixedClasspathLocatorStrategy( "/assemblies" );
         Location location = ls.resolve( "empty.xml", mh );
 
@@ -54,10 +52,9 @@ public class PrefixedClasspathLocatorStrategyTest
         assertEquals( 0, mh.size() );
     }
 
+    @Test
     public void testResolvePrefixWithoutLeadingSlashAndWithTrailingSlash()
     {
-        MessageHolder mh = new DefaultMessageHolder();
-
         LocatorStrategy ls = new PrefixedClasspathLocatorStrategy( "assemblies/" );
         Location location = ls.resolve( "empty.xml", mh );
 
@@ -65,10 +62,9 @@ public class PrefixedClasspathLocatorStrategyTest
         assertEquals( 0, mh.size() );
     }
 
+    @Test
     public void testResolvePrefixWithoutLeadingSlashAndWithoutTrailingSlash()
     {
-        MessageHolder mh = new DefaultMessageHolder();
-
         LocatorStrategy ls = new PrefixedClasspathLocatorStrategy( "assemblies" );
         Location location = ls.resolve( "empty.xml", mh );
 

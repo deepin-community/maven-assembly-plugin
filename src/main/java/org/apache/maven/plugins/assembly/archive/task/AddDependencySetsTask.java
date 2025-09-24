@@ -23,6 +23,7 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +42,7 @@ import org.apache.maven.plugins.assembly.model.UnpackOptions;
 import org.apache.maven.plugins.assembly.utils.AssemblyFormatUtils;
 import org.apache.maven.plugins.assembly.utils.FilterUtils;
 import org.apache.maven.plugins.assembly.utils.TypeConversionUtils;
+import org.apache.maven.project.DefaultProjectBuildingRequest;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingException;
@@ -52,19 +54,21 @@ import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
 import org.codehaus.plexus.components.io.functions.InputStreamTransformer;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
-import org.codehaus.plexus.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @version $Id: AddDependencySetsTask.java 1748867 2016-06-17 15:15:26Z rfscholte $
+ *
  */
 public class AddDependencySetsTask
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger( AddDependencySetsTask.class );
 
     private static final List<String> NON_ARCHIVE_DEPENDENCY_TYPES;
 
     static
     {
-        final List<String> nonArch = new ArrayList<String>();
+        final List<String> nonArch = new ArrayList<>();
 
         nonArch.add( "pom" );
 
@@ -72,8 +76,6 @@ public class AddDependencySetsTask
     }
 
     private final List<DependencySet> dependencySets;
-
-    private final Logger logger;
 
     private final MavenProject project;
 
@@ -91,13 +93,12 @@ public class AddDependencySetsTask
 
 
     public AddDependencySetsTask( final List<DependencySet> dependencySets, final Set<Artifact> resolvedArtifacts,
-                                  final MavenProject project, ProjectBuilder projectBuilder, final Logger logger )
+                                  final MavenProject project, ProjectBuilder projectBuilder )
     {
         this.dependencySets = dependencySets;
         this.resolvedArtifacts = resolvedArtifacts;
         this.project = project;
         this.projectBuilder1 = projectBuilder;
-        this.logger = logger;
     }
 
     public void execute( final Archiver archiver, final AssemblerConfigurationSource configSource )
@@ -105,14 +106,15 @@ public class AddDependencySetsTask
     {
         if ( ( dependencySets == null ) || dependencySets.isEmpty() )
         {
-            logger.debug( "No dependency sets specified." );
+            LOGGER.debug( "No dependency sets specified." );
             return;
         }
 
         final List<Dependency> deps = project.getDependencies();
         if ( ( deps == null ) || deps.isEmpty() )
         {
-            logger.debug( "Project " + project.getId() + " has no dependencies. Skipping dependency set addition." );
+            LOGGER.debug(
+                    "Project " + project.getId() + " has no dependencies. Skipping dependency set addition." );
         }
 
         for ( final DependencySet dependencySet : dependencySets )
@@ -125,11 +127,11 @@ public class AddDependencySetsTask
                            final AssemblerConfigurationSource configSource )
         throws AssemblyFormattingException, ArchiveCreationException, InvalidAssemblerConfigurationException
     {
-        logger.debug( "Processing DependencySet (output=" + dependencySet.getOutputDirectory() + ")" );
+        LOGGER.debug( "Processing DependencySet (output=" + dependencySet.getOutputDirectory() + ")" );
 
         if ( !dependencySet.isUseTransitiveDependencies() && dependencySet.isUseTransitiveFiltering() )
         {
-            logger.warn( "DependencySet has nonsensical configuration: useTransitiveDependencies == false "
+            LOGGER.warn( "DependencySet has nonsensical configuration: useTransitiveDependencies == false "
                              + "AND useTransitiveFiltering == true. Transitive filtering flag will be ignored." );
         }
 
@@ -140,13 +142,15 @@ public class AddDependencySetsTask
             checkMultiArtifactOutputConfig( dependencySet );
         }
 
-        logger.debug( "Adding " + dependencyArtifacts.size() + " dependency artifacts." );
+        LOGGER.debug( "Adding " + dependencyArtifacts.size() + " dependency artifacts." );
 
-        InputStreamTransformer fileSetTransformers =
-            isUnpackWithOptions( dependencySet )
-                ? ReaderFormatter.getFileSetTransformers( configSource, dependencySet.getUnpackOptions().isFiltered(),
-                                                          dependencySet.getUnpackOptions().getLineEnding() )
-                : null;
+        UnpackOptions unpackOptions = dependencySet.getUnpackOptions();
+        InputStreamTransformer fileSetTransformers = isUnpackWithOptions( dependencySet )
+                        ? ReaderFormatter.getFileSetTransformers( configSource,
+                                                          unpackOptions.isFiltered(),
+                                                          new HashSet<>( unpackOptions.getNonFilteredFileExtensions() ),
+                                                          unpackOptions.getLineEnding() )
+                        : null;
 
         for ( final Artifact depArtifact : dependencyArtifacts )
         {
@@ -159,7 +163,7 @@ public class AddDependencySetsTask
             }
             catch ( final ProjectBuildingException e )
             {
-                logger.debug(
+                LOGGER.debug(
                     "Error retrieving POM of module-dependency: " + depArtifact.getId() + "; Reason: " + e.getMessage()
                         + "\n\nBuilding stub project instance." );
 
@@ -180,7 +184,8 @@ public class AddDependencySetsTask
 
     private ProjectBuildingRequest getProjectBuildingRequest( AssemblerConfigurationSource configSource )
     {
-        return configSource.getMavenSession().getProjectBuildingRequest();
+        return new DefaultProjectBuildingRequest( configSource.getMavenSession().getProjectBuildingRequest() )
+                .setProcessPlugins( false );
     }
 
     private boolean isUnpackWithOptions( DependencySet dependencySet )
@@ -190,10 +195,10 @@ public class AddDependencySetsTask
 
     private boolean unpackTransformsContent( DependencySet dependencySet )
     {
-        return isUnpackWithOptions( dependencySet ) && isConentModifyingOption( dependencySet.getUnpackOptions() );
+        return isUnpackWithOptions( dependencySet ) && isContentModifyingOption( dependencySet.getUnpackOptions() );
     }
 
-    private boolean isConentModifyingOption( UnpackOptions opts )
+    private boolean isContentModifyingOption( UnpackOptions opts )
     {
         return ( opts.isFiltered() || opts.getLineEnding() != null );
     }
@@ -214,7 +219,7 @@ public class AddDependencySetsTask
 
         if ( ( dir == null || !dir.contains( "${" ) ) && ( mapping == null || !mapping.contains( "${" ) ) )
         {
-            logger.warn( "NOTE: Your assembly specifies a dependencySet that matches multiple artifacts, but "
+            LOGGER.warn( "NOTE: Your assembly specifies a dependencySet that matches multiple artifacts, but "
                              + "specifies a concrete output format. THIS MAY RESULT IN ONE OR MORE ARTIFACTS BEING "
                              + "OBSCURED!\n\n" + "Output directory: '" + dir + "'\nOutput filename mapping: '" + mapping
                              + "'" );
@@ -227,11 +232,11 @@ public class AddDependencySetsTask
                                     InputStreamTransformer fileSetTransformers )
         throws AssemblyFormattingException, ArchiveCreationException
     {
-        logger.debug( "Adding dependency artifact " + depArtifact.getId() + "." );
+        LOGGER.debug( "Adding dependency artifact " + depArtifact.getId() + "." );
 
         String encoding = isUnpackWithOptions( dependencySet ) ? dependencySet.getUnpackOptions().getEncoding() : null;
         Charset charset = encoding != null ? Charset.forName( encoding ) : null;
-        final AddArtifactTask task = new AddArtifactTask( depArtifact, logger, fileSetTransformers, charset );
+        final AddArtifactTask task = new AddArtifactTask( depArtifact, fileSetTransformers, charset );
 
         task.setProject( depProject );
         task.setModuleProject( moduleProject );
@@ -239,13 +244,13 @@ public class AddDependencySetsTask
         task.setOutputDirectory( dependencySet.getOutputDirectory(), defaultOutputDirectory );
         task.setFileNameMapping( dependencySet.getOutputFileNameMapping(), defaultOutputFileNameMapping );
 
-        final int dirMode = TypeConversionUtils.modeToInt( dependencySet.getDirectoryMode(), logger );
+        final int dirMode = TypeConversionUtils.modeToInt( dependencySet.getDirectoryMode(), LOGGER );
         if ( dirMode != -1 )
         {
             task.setDirectoryMode( dirMode );
         }
 
-        final int fileMode = TypeConversionUtils.modeToInt( dependencySet.getFileMode(), logger );
+        final int fileMode = TypeConversionUtils.modeToInt( dependencySet.getFileMode(), LOGGER );
         if ( fileMode != -1 )
         {
             task.setFileMode( fileMode );
@@ -258,6 +263,7 @@ public class AddDependencySetsTask
         {
             task.setIncludes( opts.getIncludes() );
             task.setExcludes( opts.getExcludes() );
+            task.setUsingDefaultExcludes( opts.isUseDefaultExcludes() );
         }
 
         task.execute( archiver, configSource );
@@ -283,7 +289,7 @@ public class AddDependencySetsTask
     Set<Artifact> resolveDependencyArtifacts( final DependencySet dependencySet )
         throws InvalidAssemblerConfigurationException
     {
-        final Set<Artifact> dependencyArtifacts = new LinkedHashSet<Artifact>();
+        final Set<Artifact> dependencyArtifacts = new LinkedHashSet<>();
         if ( resolvedArtifacts != null )
         {
             dependencyArtifacts.addAll( resolvedArtifacts );
@@ -298,7 +304,7 @@ public class AddDependencySetsTask
             }
             else
             {
-                logger.warn( "Cannot include project artifact: " + projectArtifact
+                LOGGER.warn( "Cannot include project artifact: " + projectArtifact
                                  + "; it doesn't have an associated file or directory." );
             }
         }
@@ -316,7 +322,7 @@ public class AddDependencySetsTask
                     }
                     else
                     {
-                        logger.warn(
+                        LOGGER.warn(
                             "Cannot include attached artifact: " + project.getId() + " for project: " + project.getId()
                                 + "; it doesn't have an associated file or directory." );
                     }
@@ -326,11 +332,11 @@ public class AddDependencySetsTask
 
         if ( dependencySet.isUseTransitiveFiltering() )
         {
-            logger.debug( "Filtering dependency artifacts USING transitive dependency path information." );
+            LOGGER.debug( "Filtering dependency artifacts USING transitive dependency path information." );
         }
         else
         {
-            logger.debug( "Filtering dependency artifacts WITHOUT transitive dependency path information." );
+            LOGGER.debug( "Filtering dependency artifacts WITHOUT transitive dependency path information." );
         }
 
         final ScopeFilter scopeFilter = FilterUtils.newScopeFilter( dependencySet.getScope() );
@@ -339,7 +345,7 @@ public class AddDependencySetsTask
         
         FilterUtils.filterArtifacts( dependencyArtifacts, dependencySet.getIncludes(), dependencySet.getExcludes(),
                                      dependencySet.isUseStrictFiltering(), dependencySet.isUseTransitiveFiltering(),
-                                     logger, filter );
+                                     LOGGER, filter );
 
         return dependencyArtifacts;
     }
@@ -380,7 +386,7 @@ public class AddDependencySetsTask
 
         try
         {
-            final int mode = TypeConversionUtils.modeToInt( dependencySet.getFileMode(), logger );
+            final int mode = TypeConversionUtils.modeToInt( dependencySet.getFileMode(), LOGGER );
             if ( mode > -1 )
             {
                 archiver.addFile( source, target, mode );
@@ -399,11 +405,6 @@ public class AddDependencySetsTask
     public List<DependencySet> getDependencySets()
     {
         return dependencySets;
-    }
-
-    public Logger getLogger()
-    {
-        return logger;
     }
 
     public void setDefaultOutputDirectory( final String defaultOutputDirectory )

@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @version $Id: AddDirectoryTask.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public class AddDirectoryTask
 {
@@ -103,11 +103,11 @@ public class AddDirectoryTask
                 List<String> directoryExcludes;
                 if ( excludes != null && !excludes.isEmpty() )
                 {
-                    directoryExcludes = new ArrayList<String>( excludes );
+                    directoryExcludes = new ArrayList<>( excludes );
                 }
                 else
                 {
-                    directoryExcludes = new ArrayList<String>();
+                    directoryExcludes = new ArrayList<>();
                 }
 
                 try

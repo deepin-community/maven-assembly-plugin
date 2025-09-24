@@ -19,6 +19,10 @@ package org.apache.maven.plugins.assembly.repository;
  * under the License.
  */
 
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.resolver.filter.AndArtifactFilter;
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
@@ -36,40 +41,47 @@ import org.apache.maven.plugins.assembly.repository.model.GroupVersionAlignment;
 import org.apache.maven.plugins.assembly.repository.model.RepositoryInfo;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.shared.artifact.TransferUtils;
 import org.apache.maven.shared.artifact.filter.PatternExcludesArtifactFilter;
 import org.apache.maven.shared.artifact.filter.PatternIncludesArtifactFilter;
 import org.apache.maven.shared.artifact.filter.ScopeArtifactFilter;
-import org.apache.maven.shared.artifact.resolve.ArtifactResolver;
-import org.apache.maven.shared.artifact.resolve.ArtifactResolverException;
-import org.apache.maven.shared.artifact.resolve.ArtifactResult;
-import org.apache.maven.shared.dependencies.resolve.DependencyResolver;
-import org.apache.maven.shared.dependencies.resolve.DependencyResolverException;
-import org.apache.maven.shared.repository.RepositoryManager;
-import org.apache.maven.shared.utils.io.FileUtils;
-import org.codehaus.plexus.component.annotations.Component;
-import org.codehaus.plexus.component.annotations.Requirement;
-import org.codehaus.plexus.logging.AbstractLogEnabled;
-import org.codehaus.plexus.logging.Logger;
+import org.apache.maven.shared.transfer.artifact.TransferUtils;
+import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResolver;
+import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResolverException;
+import org.apache.maven.shared.transfer.artifact.resolve.ArtifactResult;
+import org.apache.maven.shared.transfer.dependencies.resolve.DependencyResolver;
+import org.apache.maven.shared.transfer.dependencies.resolve.DependencyResolverException;
+import org.apache.maven.shared.transfer.repository.RepositoryManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Jason van Zyl
  */
 
 // todo will need to pop the processed project cache using reflection
-@Component( role = RepositoryAssembler.class )
-public class DefaultRepositoryAssembler
-    extends AbstractLogEnabled
-    implements RepositoryAssembler
+@Singleton
+@Named
+public class DefaultRepositoryAssembler implements RepositoryAssembler
 {
-    @Requirement
-    protected ArtifactResolver artifactResolver;
+    private static final Logger LOGGER = LoggerFactory.getLogger( DefaultRepositoryAssembler.class );
 
-    @Requirement
-    private DependencyResolver dependencyResolver;
+    private final ArtifactResolver artifactResolver;
 
-    @Requirement
-    private RepositoryManager repositoryManager;
+    private final RepositoryManager repositoryManager;
+
+    private final DependencyResolver dependencyResolver;
+
+    @Inject
+    public DefaultRepositoryAssembler( ArtifactResolver artifactResolver,
+                                       RepositoryManager repositoryManager,
+                                       DependencyResolver dependencyResolver )
+    {
+        this.artifactResolver = requireNonNull( artifactResolver );
+        this.repositoryManager = requireNonNull( repositoryManager );
+        this.dependencyResolver = requireNonNull( dependencyResolver );
+    }
 
     public void buildRemoteRepository( File repositoryDirectory, RepositoryInfo repository,
                                        RepositoryBuilderConfigSource configSource )
@@ -78,17 +90,15 @@ public class DefaultRepositoryAssembler
         MavenProject project = configSource.getProject();
         ProjectBuildingRequest buildingRequest = configSource.getProjectBuildingRequest();
 
-        Iterable<ArtifactResult> result = null;
+        Iterable<ArtifactResult> result;
 
         Collection<Dependency> dependencies = project.getDependencies();
 
         if ( dependencies == null )
         {
-            Logger logger = getLogger();
-
-            if ( logger.isDebugEnabled() )
+            if ( LOGGER.isDebugEnabled() )
             {
-                logger.debug( "dependency-artifact set for project: " + project.getId()
+                LOGGER.debug( "dependency-artifact set for project: " + project.getId()
                     + " is null. Skipping repository processing." );
             }
 
@@ -161,7 +171,7 @@ public class DefaultRepositoryAssembler
 
         if ( ( includes == null ) || includes.isEmpty() )
         {
-            List<String> patterns = new ArrayList<String>();
+            List<String> patterns = new ArrayList<>();
 
             Set<Artifact> projectArtifacts = project.getDependencyArtifacts();
 
@@ -213,7 +223,7 @@ public class DefaultRepositoryAssembler
 
                 if ( filter.include( a ) )
                 {
-                    getLogger().debug( "Re-resolving: " + a + " for repository assembly." );
+                    LOGGER.debug( "Re-resolving: " + a + " for repository assembly." );
 
                     setAlignment( a, groupVersionAlignments );
 
@@ -244,7 +254,7 @@ public class DefaultRepositoryAssembler
     protected Map<String, GroupVersionAlignment> createGroupVersionAlignments( List<GroupVersionAlignment> versionAlignments )
     // CHECKSTYLE_ON: LineLength
     {
-        Map<String, GroupVersionAlignment> groupVersionAlignments = new HashMap<String, GroupVersionAlignment>();
+        Map<String, GroupVersionAlignment> groupVersionAlignments = new HashMap<>();
 
         if ( versionAlignments != null )
         {

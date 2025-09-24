@@ -24,7 +24,7 @@ import org.apache.maven.plugins.assembly.model.GroupVersionAlignment;
 import java.util.List;
 
 /**
- * @version $Id: GroupVersionAlignmentWrapper.java 1722459 2015-12-31 19:47:48Z rfscholte $
+ *
  */
 class GroupVersionAlignmentWrapper
     implements org.apache.maven.plugins.assembly.repository.model.GroupVersionAlignment
@@ -35,7 +35,7 @@ class GroupVersionAlignmentWrapper
     /**
      * @param alignment @{link {@link GroupVersionAlignment}
      */
-    public GroupVersionAlignmentWrapper( final GroupVersionAlignment alignment )
+    GroupVersionAlignmentWrapper( final GroupVersionAlignment alignment )
     {
         this.alignment = alignment;
     }

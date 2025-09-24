@@ -33,7 +33,7 @@ import java.util.Set;
  * Convenience component that aids in the resolution of dependency artifacts, according to various configurations such
  * as transitivity flag and scope.
  *
- * @version $Id: DependencyResolver.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public interface DependencyResolver
 {

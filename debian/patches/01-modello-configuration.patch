@@ -3,8 +3,8 @@ Author: Emmanuel Bourg <ebourg@apache.org>
 Forwarded: not-needed
 --- a/pom.xml
 +++ b/pom.xml
-@@ -279,6 +279,7 @@
-         <version>1.8.3</version>
+@@ -316,6 +316,7 @@
+         <artifactId>modello-maven-plugin</artifactId>
          <configuration>
            <version>${mdoVersion}</version>
 +          <useJava5>true</useJava5>

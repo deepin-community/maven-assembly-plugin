@@ -29,9 +29,8 @@ import org.codehaus.plexus.interpolation.InterpolationPostProcessor;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
 import org.codehaus.plexus.interpolation.fixed.InterpolationState;
 import org.codehaus.plexus.interpolation.object.FieldBasedObjectInterpolator;
-import org.codehaus.plexus.logging.Logger;
+import org.slf4j.Logger;
 
-import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
@@ -39,7 +38,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * @version $Id: AssemblyInterpolator.java 1694836 2015-08-08 18:35:14Z rfscholte $
+ *
  */
 public class AssemblyInterpolator
 {
@@ -47,7 +46,7 @@ public class AssemblyInterpolator
 
     static
     {
-        final Set<String> blacklist = new HashSet<String>();
+        final Set<String> blacklist = new HashSet<>();
 
         blacklist.add( "outputFileNameMapping" );
         blacklist.add( "outputDirectoryMapping" );
@@ -65,7 +64,7 @@ public class AssemblyInterpolator
         final FixedStringSearchInterpolator interpolator, final InterpolationState is, final Logger logger )
     {
         final Set<String> blacklistFields =
-            new HashSet<String>( FieldBasedObjectInterpolator.DEFAULT_BLACKLISTED_FIELD_NAMES );
+            new HashSet<>( FieldBasedObjectInterpolator.DEFAULT_BLACKLISTED_FIELD_NAMES );
         blacklistFields.addAll( INTERPOLATION_BLACKLIST );
 
         return new AssemblyXpp3Reader.ContentTransformer()
@@ -93,7 +92,7 @@ public class AssemblyInterpolator
         final FixedStringSearchInterpolator interpolator, final InterpolationState is, final Logger logger )
     {
         final Set<String> blacklistFields =
-            new HashSet<String>( FieldBasedObjectInterpolator.DEFAULT_BLACKLISTED_FIELD_NAMES );
+            new HashSet<>( FieldBasedObjectInterpolator.DEFAULT_BLACKLISTED_FIELD_NAMES );
         blacklistFields.addAll( INTERPOLATION_BLACKLIST );
 
         return new ComponentXpp3Reader.ContentTransformer()
@@ -140,7 +139,7 @@ public class AssemblyInterpolator
     }
 
     public static FixedStringSearchInterpolator fullInterpolator( final MavenProject project,
-                                                                  @Nonnull FixedStringSearchInterpolator projectIp,
+                                                                  final FixedStringSearchInterpolator projectIp,
                                                                   final AssemblerConfigurationSource configSource )
     {
         FixedStringSearchInterpolator fixedStringSearchInterpolator =
@@ -158,7 +157,7 @@ public class AssemblyInterpolator
 
         private final File basedir;
 
-        public PathTranslatingPostProcessor( final File basedir )
+        PathTranslatingPostProcessor( final File basedir )
         {
             this.basedir = basedir;
         }

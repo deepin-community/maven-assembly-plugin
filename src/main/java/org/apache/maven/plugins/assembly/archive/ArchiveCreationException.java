@@ -20,7 +20,7 @@ package org.apache.maven.plugins.assembly.archive;
  */
 
 /**
- * @version $Id: ArchiveCreationException.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public class ArchiveCreationException
     extends Exception
