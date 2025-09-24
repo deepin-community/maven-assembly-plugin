@@ -20,12 +20,12 @@ package org.apache.maven.plugins.assembly.utils;
  */
 
 import org.apache.maven.plugins.assembly.format.AssemblyFormattingException;
-import org.codehaus.plexus.logging.Logger;
+import org.slf4j.Logger;
 
 import java.util.List;
 
 /**
- * @version $Id: TypeConversionUtils.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public final class TypeConversionUtils
 {
@@ -58,7 +58,7 @@ public final class TypeConversionUtils
 
         if ( ( list != null ) && !list.isEmpty() )
         {
-            result = list.toArray( new String[list.size()] );
+            result = list.toArray( new String[0] );
         }
 
         return result;
@@ -158,7 +158,7 @@ public final class TypeConversionUtils
         }
         // end execute-/list-access checks.
 
-        if ( warn )
+        if ( warn && logger != null )
         {
             logger.warn( messages.toString() );
         }

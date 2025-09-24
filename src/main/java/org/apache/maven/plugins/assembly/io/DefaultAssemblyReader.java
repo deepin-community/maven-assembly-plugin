@@ -19,7 +19,10 @@ package org.apache.maven.plugins.assembly.io;
  * under the License.
  */
 
-import org.apache.commons.io.IOUtils;
+import javax.inject.Named;
+import javax.inject.Singleton;
+
+import org.apache.commons.io.input.XmlStreamReader;
 import org.apache.maven.plugins.assembly.AssemblerConfigurationSource;
 import org.apache.maven.plugins.assembly.InvalidAssemblerConfigurationException;
 import org.apache.maven.plugins.assembly.interpolation.AssemblyExpressionEvaluator;
@@ -38,24 +41,17 @@ import org.apache.maven.plugins.assembly.model.io.xpp3.ComponentXpp3Reader;
 import org.apache.maven.plugins.assembly.resolved.AssemblyId;
 import org.apache.maven.plugins.assembly.utils.InterpolationConstants;
 import org.apache.maven.project.MavenProject;
-import org.apache.maven.shared.io.location.ClasspathResourceLocatorStrategy;
-import org.apache.maven.shared.io.location.FileLocatorStrategy;
-import org.apache.maven.shared.io.location.Location;
-import org.apache.maven.shared.io.location.Locator;
-import org.apache.maven.shared.io.location.LocatorStrategy;
-import org.apache.maven.shared.utils.ReaderFactory;
 import org.codehaus.plexus.interpolation.PrefixAwareRecursionInterceptor;
 import org.codehaus.plexus.interpolation.RecursionInterceptor;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
 import org.codehaus.plexus.interpolation.fixed.InterpolationState;
 import org.codehaus.plexus.interpolation.fixed.PrefixedObjectValueSource;
 import org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource;
-import org.codehaus.plexus.logging.AbstractLogEnabled;
-import org.codehaus.plexus.logging.Logger;
-import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.codehaus.plexus.util.DirectoryScanner;
 import org.codehaus.plexus.util.IOUtil;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,13 +66,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * @version $Id: DefaultAssemblyReader.java 1798337 2017-06-10 21:07:34Z hboutemy $
+ *
  */
-@org.codehaus.plexus.component.annotations.Component( role = AssemblyReader.class )
-public class DefaultAssemblyReader
-    extends AbstractLogEnabled
-    implements AssemblyReader
+@Singleton
+@Named
+public class DefaultAssemblyReader implements AssemblyReader
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger( DefaultAssemblyReader.class );
 
     public static FixedStringSearchInterpolator createProjectInterpolator( MavenProject project )
     {
@@ -94,14 +90,14 @@ public class DefaultAssemblyReader
     {
         final Locator locator = new Locator();
 
-        final List<LocatorStrategy> strategies = new ArrayList<LocatorStrategy>();
+        final List<LocatorStrategy> strategies = new ArrayList<>();
         strategies.add( new RelativeFileLocatorStrategy( configSource.getBasedir() ) );
         strategies.add( new FileLocatorStrategy() );
 
-        final List<LocatorStrategy> refStrategies = new ArrayList<LocatorStrategy>();
+        final List<LocatorStrategy> refStrategies = new ArrayList<>();
         refStrategies.add( new PrefixedClasspathLocatorStrategy( "/assemblies/" ) );
 
-        final List<Assembly> assemblies = new ArrayList<Assembly>();
+        final List<Assembly> assemblies = new ArrayList<>();
 
         final String[] descriptors = configSource.getDescriptors();
         final String[] descriptorRefs = configSource.getDescriptorReferences();
@@ -112,7 +108,7 @@ public class DefaultAssemblyReader
             locator.setStrategies( strategies );
             for ( String descriptor1 : descriptors )
             {
-                getLogger().info( "Reading assembly descriptor: " + descriptor1 );
+                LOGGER.info( "Reading assembly descriptor: " + descriptor1 );
                 addAssemblyFromDescriptor( descriptor1, locator, configSource, assemblies );
             }
         }
@@ -151,7 +147,7 @@ public class DefaultAssemblyReader
         {
             if ( configSource.isIgnoreMissingDescriptor() )
             {
-                getLogger().debug( "Ignoring missing assembly descriptors per configuration. "
+                LOGGER.debug( "Ignoring missing assembly descriptors per configuration. "
                     + "See messages above for specifics." );
             }
             else
@@ -161,12 +157,12 @@ public class DefaultAssemblyReader
         }
 
         // check unique IDs
-        final Set<String> ids = new HashSet<String>();
+        final Set<String> ids = new HashSet<>();
         for ( final Assembly assembly : assemblies )
         {
             if ( !ids.add( assembly.getId() ) )
             {
-                getLogger().warn( "The assembly id " + assembly.getId() + " is used more than once." );
+                LOGGER.warn( "The assembly id " + assembly.getId() + " is used more than once." );
             }
 
         }
@@ -201,7 +197,7 @@ public class DefaultAssemblyReader
         {
             if ( configSource.isIgnoreMissingDescriptor() )
             {
-                getLogger().debug( "Ignoring missing assembly descriptor with ID '" + ref + "' per configuration." );
+                LOGGER.debug( "Ignoring missing assembly descriptor with ID '" + ref + "' per configuration." );
                 return null;
             }
             else
@@ -210,23 +206,15 @@ public class DefaultAssemblyReader
             }
         }
 
-        Reader reader = null;
-        try
+        try ( Reader reader = new XmlStreamReader( resourceAsStream ) )
         {
-            reader = ReaderFactory.newXmlReader( resourceAsStream );
             final Assembly assembly = readAssembly( reader, ref, null, configSource );
-            reader.close();
-            reader = null;
             assemblies.add( assembly );
             return assembly;
         }
         catch ( final IOException e )
         {
             throw new AssemblyReadException( "Problem with descriptor with ID '" + ref + "'", e );
-        }
-        finally
-        {
-            IOUtils.closeQuietly( reader );
         }
     }
 
@@ -240,7 +228,7 @@ public class DefaultAssemblyReader
         {
             if ( configSource.isIgnoreMissingDescriptor() )
             {
-                getLogger().debug( "Ignoring missing assembly descriptor: '" + descriptor + "' per configuration." );
+                LOGGER.debug( "Ignoring missing assembly descriptor: '" + descriptor + "' per configuration." );
                 return null;
             }
             else
@@ -249,16 +237,10 @@ public class DefaultAssemblyReader
             }
         }
 
-        Reader r = null;
-        try
+        try ( Reader r = new XmlStreamReader( descriptor ) )
         {
-            r = ReaderFactory.newXmlReader( descriptor );
-
             final Assembly assembly =
                 readAssembly( r, descriptor.getAbsolutePath(), descriptor.getParentFile(), configSource );
-
-            r.close();
-            r = null;
 
             assemblies.add( assembly );
 
@@ -267,10 +249,6 @@ public class DefaultAssemblyReader
         catch ( final IOException e )
         {
             throw new AssemblyReadException( "Error reading assembly descriptor: " + descriptor, e );
-        }
-        finally
-        {
-            IOUtil.close( r );
         }
     }
 
@@ -285,7 +263,7 @@ public class DefaultAssemblyReader
         {
             if ( configSource.isIgnoreMissingDescriptor() )
             {
-                getLogger().debug( "Ignoring missing assembly descriptor with ID '" + spec
+                LOGGER.debug( "Ignoring missing assembly descriptor with ID '" + spec
                     + "' per configuration.\nLocator output was:\n\n" + locator.getMessageHolder().render() );
                 return null;
             }
@@ -296,11 +274,9 @@ public class DefaultAssemblyReader
             }
         }
 
-        Reader r = null;
-        try
+        
+        try ( Reader r = new XmlStreamReader( location.getInputStream() ) )
         {
-            r = ReaderFactory.newXmlReader( location.getInputStream() );
-
             File dir = null;
             if ( location.getFile() != null )
             {
@@ -308,9 +284,6 @@ public class DefaultAssemblyReader
             }
 
             final Assembly assembly = readAssembly( r, spec, dir, configSource );
-
-            r.close();
-            r = null;
 
             assemblies.add( assembly );
 
@@ -320,11 +293,6 @@ public class DefaultAssemblyReader
         {
             throw new AssemblyReadException( "Error reading assembly descriptor: " + spec, e );
         }
-        finally
-        {
-            IOUtil.close( r );
-        }
-
     }
 
     public Assembly readAssembly( Reader reader, final String locationDescription, final File assemblyDir,
@@ -345,27 +313,22 @@ public class DefaultAssemblyReader
             FixedStringSearchInterpolator interpolator =
                 AssemblyInterpolator.fullInterpolator( project, createProjectInterpolator( project ), configSource );
             AssemblyXpp3Reader.ContentTransformer transformer =
-                AssemblyInterpolator.assemblyInterpolator( interpolator, is, getLogger() );
+                AssemblyInterpolator.assemblyInterpolator( interpolator, is, LOGGER );
 
             final AssemblyXpp3Reader r = new AssemblyXpp3Reader( transformer );
             assembly = r.read( reader );
 
             ComponentXpp3Reader.ContentTransformer ctrans =
-                AssemblyInterpolator.componentInterpolator( interpolator, is, getLogger() );
+                AssemblyInterpolator.componentInterpolator( interpolator, is, LOGGER );
             mergeComponentsWithMainAssembly( assembly, assemblyDir, configSource, ctrans );
             debugPrintAssembly( "After assembly is interpolated:", assembly );
 
-            AssemblyInterpolator.checkErrors( AssemblyId.createAssemblyId( assembly ), is, getLogger() );
+            AssemblyInterpolator.checkErrors( AssemblyId.createAssemblyId( assembly ), is, LOGGER );
 
             reader.close();
             reader = null;
         }
-        catch ( final IOException e )
-        {
-            throw new AssemblyReadException( "Error reading descriptor: " + locationDescription + ": " + e.getMessage(),
-                                             e );
-        }
-        catch ( final XmlPullParserException e )
+        catch ( final IOException | XmlPullParserException e )
         {
             throw new AssemblyReadException( "Error reading descriptor: " + locationDescription + ": " + e.getMessage(),
                                              e );
@@ -392,20 +355,20 @@ public class DefaultAssemblyReader
         }
         catch ( final IOException e )
         {
-            getLogger().debug( "Failed to print debug message with assembly descriptor listing, and message: "
+            LOGGER.debug( "Failed to print debug message with assembly descriptor listing, and message: "
                 + message, e );
         }
 
-        getLogger().debug( message + "\n\n" + sWriter.toString() + "\n\n" );
+        LOGGER.debug( message + "\n\n" + sWriter.toString() + "\n\n" );
     }
 
     /**
      * Add the contents of all included components to main assembly
      *
-     * @param assembly The assembly
-     * @param assemblyDir The assembly directory
-     * @param transformer The component interpolator
-     * @throws AssemblyReadException .
+     * @param assembly the assembly
+     * @param assemblyDir the assembly directory
+     * @param transformer the component interpolator
+     * @throws AssemblyReadException
      */
     protected void mergeComponentsWithMainAssembly( final Assembly assembly, final File assemblyDir,
                                                     final AssemblerConfigurationSource configSource,
@@ -437,7 +400,7 @@ public class DefaultAssemblyReader
             }
             catch ( final Exception eee )
             {
-                getLogger().error( "Error interpolating componentDescriptor: " + location, eee );
+                LOGGER.error( "Error interpolating componentDescriptor: " + location, eee );
             }
 
             final Location resolvedLocation = locator.resolve( location );
@@ -448,25 +411,14 @@ public class DefaultAssemblyReader
             }
 
             Component component = null;
-            Reader reader = null;
-            try
+            try ( Reader reader = new InputStreamReader( resolvedLocation.getInputStream() ) )
             {
-                reader = new InputStreamReader( resolvedLocation.getInputStream() );
                 component = new ComponentXpp3Reader( transformer ).read( reader );
             }
-            catch ( final IOException e )
+            catch ( final IOException | XmlPullParserException e )
             {
                 throw new AssemblyReadException( "Error reading component descriptor: " + location + " (resolved to: "
                     + resolvedLocation.getSpecification() + ")", e );
-            }
-            catch ( final XmlPullParserException e )
-            {
-                throw new AssemblyReadException( "Error reading component descriptor: " + location + " (resolved to: "
-                    + resolvedLocation.getSpecification() + ")", e );
-            }
-            finally
-            {
-                IOUtil.close( reader );
             }
 
             mergeComponentWithAssembly( component, assembly );
@@ -536,7 +488,7 @@ public class DefaultAssemblyReader
                 + "please run site:site before creating the assembly" );
         }
 
-        getLogger().info( "Adding site directory to assembly : " + siteDirectory );
+        LOGGER.info( "Adding site directory to assembly : " + siteDirectory );
 
         final FileSet siteFileSet = new FileSet();
 
@@ -546,19 +498,4 @@ public class DefaultAssemblyReader
 
         assembly.addFileSet( siteFileSet );
     }
-
-    @Override
-    protected Logger getLogger()
-    {
-        Logger logger = super.getLogger();
-
-        if ( logger == null )
-        {
-            logger = new ConsoleLogger( Logger.LEVEL_INFO, "assemblyReader-internal" );
-            enableLogging( logger );
-        }
-
-        return logger;
-    }
-
 }

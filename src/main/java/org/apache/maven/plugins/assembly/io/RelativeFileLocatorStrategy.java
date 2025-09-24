@@ -19,15 +19,10 @@ package org.apache.maven.plugins.assembly.io;
  * under the License.
  */
 
-import org.apache.maven.shared.io.location.FileLocation;
-import org.apache.maven.shared.io.location.Location;
-import org.apache.maven.shared.io.location.LocatorStrategy;
-import org.apache.maven.shared.io.logging.MessageHolder;
-
 import java.io.File;
 
 /**
- * @version $Id: RelativeFileLocatorStrategy.java 1691831 2015-07-19 15:06:13Z rfscholte $
+ *
  */
 class RelativeFileLocatorStrategy
     implements LocatorStrategy
@@ -35,7 +30,7 @@ class RelativeFileLocatorStrategy
 
     private final File basedir;
 
-    public RelativeFileLocatorStrategy( File basedir )
+    RelativeFileLocatorStrategy( File basedir )
     {
         this.basedir = basedir;
     }

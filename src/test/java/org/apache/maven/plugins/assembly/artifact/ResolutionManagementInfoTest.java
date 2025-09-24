@@ -19,31 +19,26 @@ package org.apache.maven.plugins.assembly.artifact;
  * under the License.
  */
 
-import junit.framework.TestCase;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DefaultArtifact;
 import org.apache.maven.artifact.handler.DefaultArtifactHandler;
 import org.apache.maven.artifact.versioning.VersionRange;
-import org.apache.maven.project.MavenProject;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 
+import static org.junit.Assert.assertEquals;
+
 public class ResolutionManagementInfoTest
-    extends TestCase
 {
 
-    public void testName()
-        throws Exception
-    {
-
-    }
-
+    @Test
     public void testAddSingleArtifactWithReplacemen()
         throws Exception
     {
-        ResolutionManagementInfo rmi = new ResolutionManagementInfo( new MavenProject() );
+        ResolutionManagementInfo rmi = new ResolutionManagementInfo();
         Artifact a1 = new DefaultArtifact( "groupid", "1", VersionRange.createFromVersion( "1.0" ), "test", "jar", null,
                                            new DefaultArtifactHandler() );
         rmi.addArtifacts( Collections.singleton( a1 ) );
@@ -56,10 +51,11 @@ public class ResolutionManagementInfoTest
         assertEquals( "compile", next.getScope() );
     }
 
+    @Test
     public void testAddMultiArtifactWithReplacemen()
         throws Exception
     {
-        ResolutionManagementInfo rmi = new ResolutionManagementInfo( new MavenProject() );
+        ResolutionManagementInfo rmi = new ResolutionManagementInfo();
         Artifact a1 =
             new DefaultArtifact( "groupid", "a1", VersionRange.createFromVersion( "1.0" ), "test", "jar", null,
                                  new DefaultArtifactHandler() );
@@ -69,14 +65,14 @@ public class ResolutionManagementInfoTest
         Artifact a3 =
             new DefaultArtifact( "groupid", "a3", VersionRange.createFromVersion( "1.0" ), "test", "jar", null,
                                  new DefaultArtifactHandler() );
-        rmi.addArtifacts( new HashSet<Artifact>( Arrays.asList( a1, a2, a3 ) ) );
+        rmi.addArtifacts( new HashSet<>( Arrays.asList( a1, a2, a3 ) ) );
         Artifact b2 =
             new DefaultArtifact( "groupid", "a2", VersionRange.createFromVersion( "1.0" ), "compile", "jar", null,
                                  new DefaultArtifactHandler() );
         Artifact b3 =
             new DefaultArtifact( "groupid", "a3", VersionRange.createFromVersion( "1.0" ), "compile", "jar", null,
                                  new DefaultArtifactHandler() );
-        rmi.addArtifacts( new HashSet<Artifact>( Arrays.asList( b2, b3 ) ) );
+        rmi.addArtifacts( new HashSet<>( Arrays.asList( b2, b3 ) ) );
         assertEquals( 3, rmi.getArtifacts().size() );
         int compile = 0;
         int test = 0;

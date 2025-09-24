@@ -29,22 +29,23 @@ import org.apache.maven.shared.filtering.MavenReaderFilterRequest;
 import org.codehaus.plexus.components.io.functions.InputStreamTransformer;
 import org.codehaus.plexus.components.io.resources.PlexusIoResource;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
 /**
  *
  */
 public class ReaderFormatter
 {
-    private static Reader createReaderFilter( @Nonnull Reader source, String escapeString, List<String> delimiters,
-                                              AssemblerConfigurationSource configSource, boolean isPropertiesFile )
+    private static Reader createReaderFilter( Reader source, String escapeString, List<String> delimiters,
+                                              AssemblerConfigurationSource configSource, boolean isPropertiesFile,
+                                              Properties additionalProperties )
         throws IOException
     {
         try
@@ -52,14 +53,14 @@ public class ReaderFormatter
 
             MavenReaderFilterRequest filterRequest =
                 new MavenReaderFilterRequest( source, true, configSource.getProject(), configSource.getFilters(),
-                                              isPropertiesFile, configSource.getMavenSession(), null );
+                                              isPropertiesFile, configSource.getMavenSession(), additionalProperties );
             
             filterRequest.setEscapeString( escapeString );
 
             // if these are NOT set, just use the defaults, which are '${*}' and '@'.
             if ( delimiters != null && !delimiters.isEmpty() )
             {
-                LinkedHashSet<String> delims = new LinkedHashSet<String>();
+                LinkedHashSet<String> delims = new LinkedHashSet<>();
                 for ( String delim : delimiters )
                 {
                     if ( delim == null )
@@ -85,15 +86,13 @@ public class ReaderFormatter
         }
         catch ( MavenFilteringException e )
         {
-            IOException ioe = new IOException( "Error filtering file '" + source + "': " + e.getMessage() );
-            ioe.initCause( e ); // plain old Java 5...
+            IOException ioe = new IOException( "Error filtering file '" + source + "': " + e.getMessage(), e );
             throw ioe;
         }
     }
 
 
     private static boolean isForbiddenFiletypes( PlexusIoResource plexusIoResource )
-        throws IOException
     {
         String fileName = plexusIoResource.getName().toLowerCase();
         return ( fileName.endsWith( ".zip" ) || fileName.endsWith( ".jar" ) );
@@ -114,9 +113,10 @@ public class ReaderFormatter
 
     }
 
-    @Nullable
     public static InputStreamTransformer getFileSetTransformers( final AssemblerConfigurationSource configSource,
-                                                                 final boolean isFiltered, String fileSetLineEnding )
+                                                                 final boolean isFiltered,
+                                                                 final Set<String> nonFilteredFileExtensions,
+                                                                 String fileSetLineEnding )
         throws AssemblyFormattingException
     {
         final LineEndings lineEndingToUse = LineEndingsUtils.getLineEnding( fileSetLineEnding );
@@ -128,11 +128,19 @@ public class ReaderFormatter
             return new InputStreamTransformer()
             {
                 @Override
-                @Nonnull
-                public InputStream transform( @Nonnull PlexusIoResource plexusIoResource,
-                                              @Nonnull InputStream inputStream )
+                public InputStream transform( PlexusIoResource plexusIoResource,
+                                              InputStream inputStream )
                     throws IOException
                 {
+                    final String fileName = plexusIoResource.getName();
+                    for ( String extension : nonFilteredFileExtensions )
+                    {
+                        if ( fileName.endsWith( '.' + extension ) )
+                        {
+                            return inputStream;
+                        }
+                    }
+                    
                     InputStream result = inputStream;
                     if ( isFiltered )
                     {
@@ -144,7 +152,7 @@ public class ReaderFormatter
                             : new InputStreamReader( inputStream ); // wtf platform encoding ? TODO: Fix this
                         Reader filtered =
                             createReaderFilter( source, configSource.getEscapeString(), configSource.getDelimiters(),
-                                                configSource, isPropertyFile );
+                                                configSource, isPropertyFile, configSource.getAdditionalProperties() );
                         result = encoding != null
                             ? new ReaderInputStream( filtered, encoding )
                             : new ReaderInputStream( filtered );

@@ -22,8 +22,9 @@ package org.apache.maven.plugins.assembly.utils;
 import junit.framework.TestCase;
 import org.apache.maven.model.Model;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.logging.Logger;
-import org.codehaus.plexus.logging.console.ConsoleLogger;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,9 +34,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 public class ProjectUtilsTest
-    extends TestCase
 {
+    private final Logger logger = LoggerFactory.getLogger( getClass() );
 
     private MavenProject createTestProject( final String artifactId, final String groupId, final String version )
     {
@@ -47,6 +53,7 @@ public class ProjectUtilsTest
         return new MavenProject( model );
     }
 
+    @Test
     public void testGetProjectModules_ShouldIncludeDirectModuleOfMasterProject()
         throws IOException
     {
@@ -60,32 +67,33 @@ public class ProjectUtilsTest
 
         module.setFile( new File( "module/pom.xml" ) );
 
-        final List<MavenProject> projects = new ArrayList<MavenProject>( 2 );
+        final List<MavenProject> projects = new ArrayList<>( 2 );
 
         projects.add( master );
         projects.add( module );
 
         final Set<MavenProject> result =
-            ProjectUtils.getProjectModules( master, projects, true, new ConsoleLogger( Logger.LEVEL_INFO, "test" ) );
+            ProjectUtils.getProjectModules( master, projects, true, logger );
 
         assertNotNull( result );
         assertEquals( 1, result.size() );
         assertEquals( module.getId(), result.iterator().next().getId() );
     }
 
+    @Test
     public void testGetProjectModules_ShouldNotIncludeMasterProject()
         throws IOException
     {
         final MavenProject master = createTestProject( "test", "testGroup", "1.0" );
 
         final Set<MavenProject> result =
-            ProjectUtils.getProjectModules( master, Collections.singletonList( master ), true,
-                                            new ConsoleLogger( Logger.LEVEL_INFO, "test" ) );
+            ProjectUtils.getProjectModules( master, Collections.singletonList( master ), true, logger );
 
         assertNotNull( result );
         assertTrue( result.isEmpty() );
     }
 
+    @Test
     public void testGetProjectModules_ShouldIncludeInDirectModuleOfMasterWhenIncludeSubModulesIsTrue()
         throws IOException
     {
@@ -105,24 +113,25 @@ public class ProjectUtilsTest
 
         subModule.setFile( new File( "project/module/submodule/pom.xml" ) );
 
-        final List<MavenProject> projects = new ArrayList<MavenProject>( 3 );
+        final List<MavenProject> projects = new ArrayList<>( 3 );
 
         projects.add( master );
         projects.add( module );
         projects.add( subModule );
 
         final Set<MavenProject> result =
-            ProjectUtils.getProjectModules( master, projects, true, new ConsoleLogger( Logger.LEVEL_INFO, "test" ) );
+            ProjectUtils.getProjectModules( master, projects, true, logger );
 
         assertNotNull( result );
         assertEquals( 2, result.size() );
 
-        final List<MavenProject> verify = new ArrayList<MavenProject>( projects );
+        final List<MavenProject> verify = new ArrayList<>( projects );
         verify.remove( master );
 
         verifyProjectsPresent( verify, result );
     }
 
+    @Test
     public void testGetProjectModules_ShouldExcludeInDirectModuleOfMasterWhenIncludeSubModulesIsFalse()
         throws IOException
     {
@@ -142,25 +151,26 @@ public class ProjectUtilsTest
 
         subModule.setFile( new File( "project/module/submodule/pom.xml" ) );
 
-        final List<MavenProject> projects = new ArrayList<MavenProject>( 3 );
+        final List<MavenProject> projects = new ArrayList<>( 3 );
 
         projects.add( master );
         projects.add( module );
         projects.add( subModule );
 
         final Set<MavenProject> result =
-            ProjectUtils.getProjectModules( master, projects, false, new ConsoleLogger( Logger.LEVEL_INFO, "test" ) );
+            ProjectUtils.getProjectModules( master, projects, false, logger );
 
         assertNotNull( result );
         assertEquals( 1, result.size() );
 
-        final List<MavenProject> verify = new ArrayList<MavenProject>( projects );
+        final List<MavenProject> verify = new ArrayList<>( projects );
         verify.remove( master );
         verify.remove( subModule );
 
         verifyProjectsPresent( verify, result );
     }
 
+    @Test
     public void testGetProjectModules_ShouldExcludeNonModuleOfMasterProject()
         throws IOException
     {
@@ -172,13 +182,13 @@ public class ProjectUtilsTest
 
         other.setFile( new File( "other/pom.xml" ) );
 
-        final List<MavenProject> projects = new ArrayList<MavenProject>( 3 );
+        final List<MavenProject> projects = new ArrayList<>( 3 );
 
         projects.add( master );
         projects.add( other );
 
         final Set<MavenProject> result =
-            ProjectUtils.getProjectModules( master, projects, true, new ConsoleLogger( Logger.LEVEL_INFO, "test" ) );
+            ProjectUtils.getProjectModules( master, projects, true, logger );
 
         assertNotNull( result );
         assertTrue( result.isEmpty() );
@@ -186,9 +196,9 @@ public class ProjectUtilsTest
 
     private void verifyProjectsPresent( final List<MavenProject> verify, final Set<MavenProject> result )
     {
-        final List<MavenProject> verifyCopy = new ArrayList<MavenProject>( verify );
+        final List<MavenProject> verifyCopy = new ArrayList<>( verify );
 
-        final List<MavenProject> unexpected = new ArrayList<MavenProject>();
+        final List<MavenProject> unexpected = new ArrayList<>();
 
         for ( final MavenProject project : result )
         {

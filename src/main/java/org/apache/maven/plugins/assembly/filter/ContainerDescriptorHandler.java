@@ -23,7 +23,7 @@ import org.codehaus.plexus.archiver.ArchiveFinalizer;
 import org.codehaus.plexus.components.io.fileselectors.FileSelector;
 
 /**
- * @version $Id: ContainerDescriptorHandler.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public interface ContainerDescriptorHandler
     extends ArchiveFinalizer, FileSelector

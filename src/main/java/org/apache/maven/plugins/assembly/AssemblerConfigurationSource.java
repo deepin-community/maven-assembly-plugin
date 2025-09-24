@@ -19,6 +19,10 @@ package org.apache.maven.plugins.assembly;
  * under the License.
  */
 
+import java.io.File;
+import java.util.List;
+import java.util.Properties;
+
 import org.apache.maven.archiver.MavenArchiveConfiguration;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
@@ -26,12 +30,8 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.filtering.MavenReaderFilter;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
 
-import javax.annotation.Nonnull;
-import java.io.File;
-import java.util.List;
-
 /**
- * @version $Id: AssemblerConfigurationSource.java 1749089 2016-06-18 19:49:52Z rfscholte $
+ *
  */
 public interface AssemblerConfigurationSource
 {
@@ -46,7 +46,7 @@ public interface AssemblerConfigurationSource
     String[] getDescriptorReferences();
 
     /**
-     * @return The descriptor source direcotoy.
+     * @return The descriptor source directory.
      */
     File getDescriptorSourceDirectory();
 
@@ -86,7 +86,7 @@ public interface AssemblerConfigurationSource
     File getOutputDirectory();
 
     /**
-     * @return The working direcotory.
+     * @return The working directory.
      */
     File getWorkingDirectory();
 
@@ -114,6 +114,11 @@ public interface AssemblerConfigurationSource
      * @return The filters.
      */
     List<String> getFilters();
+    
+    /**
+     * @return the additional properties
+     */
+    Properties getAdditionalProperties();
 
     /**
      * @return include the project build filters or not.
@@ -151,14 +156,14 @@ public interface AssemblerConfigurationSource
     MavenSession getMavenSession();
 
     /**
-     * @return The archiver configu.
+     * @return The archiver configuration.
      */
     String getArchiverConfig();
 
     /**
      * Maven shared filtering utility.
      *
-     * @ return the maven reader filter
+     * @return the maven reader filter
      */
     MavenReaderFilter getMavenReaderFilter();
 
@@ -192,21 +197,37 @@ public interface AssemblerConfigurationSource
      */
     List<String> getDelimiters();
 
-    @Nonnull
     FixedStringSearchInterpolator getRepositoryInterpolator();
 
     /**
      * Gets an interpolator from environment variables and stuff
      */
-    @Nonnull
     FixedStringSearchInterpolator getCommandLinePropsInterpolator();
 
     /**
      * Gets an interpolator from environment variables and stuff
      */
-    @Nonnull
     FixedStringSearchInterpolator getEnvInterpolator();
 
-    @Nonnull
     FixedStringSearchInterpolator getMainProjectInterpolator();
+
+    /**
+     * @return Override UID.
+     */
+    Integer getOverrideUid();
+
+    /**
+     * @return Override user name.
+     */
+    String getOverrideUserName();
+
+    /**
+     * @return Override GID.
+     */
+    Integer getOverrideGid();
+
+    /**
+     * @return Override group name.
+     */
+    String getOverrideGroupName();
 }

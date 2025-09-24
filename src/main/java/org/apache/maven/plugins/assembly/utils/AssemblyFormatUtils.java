@@ -19,30 +19,30 @@ package org.apache.maven.plugins.assembly.utils;
  * under the License.
  */
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Properties;
+
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugins.assembly.AssemblerConfigurationSource;
 import org.apache.maven.plugins.assembly.format.AssemblyFormattingException;
 import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.project.MavenProject;
-import org.apache.maven.shared.utils.Os;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
+import org.codehaus.plexus.interpolation.fixed.MapBasedValueSource;
 import org.codehaus.plexus.interpolation.fixed.PrefixedObjectValueSource;
 import org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource;
 import org.codehaus.plexus.interpolation.fixed.PropertiesBasedValueSource;
-import org.codehaus.plexus.logging.Logger;
+import org.codehaus.plexus.util.Os;
 import org.codehaus.plexus.util.StringUtils;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Properties;
+import org.slf4j.Logger;
 
 /**
- * @version $Id: AssemblyFormatUtils.java 1749073 2016-06-18 16:29:34Z rfscholte $
+ *
  */
 public final class AssemblyFormatUtils
 {
@@ -72,7 +72,6 @@ public final class AssemblyFormatUtils
     }
 
 
-    @Nonnull
     public static FixedStringSearchInterpolator finalNameInterpolator( String finalName )
     {
         final Properties specialExpressionOverrides = new Properties();
@@ -90,7 +89,6 @@ public final class AssemblyFormatUtils
         return FixedStringSearchInterpolator.create( new PropertiesBasedValueSource( specialExpressionOverrides ) );
     }
 
-    @Nonnull
     public static FixedStringSearchInterpolator moduleProjectInterpolator( final MavenProject moduleProject )
     {
         if ( moduleProject != null )
@@ -113,15 +111,13 @@ public final class AssemblyFormatUtils
     {
         if ( moduleArtifact != null )
         {
-            // CHECKSTYLE_OFF: LineLength
-            return FixedStringSearchInterpolator.create( new PrefixedObjectValueSource( "module.", moduleArtifact ),
-                                                         new PrefixedObjectValueSource( "module.",
-                                                                                        moduleArtifact
-                                                                                            .getArtifactHandler() ),
-                                                         new PrefixedObjectValueSource( "module.handler.",
-                                                                                        moduleArtifact
-                                                                                            .getArtifactHandler() ) );
-            // CHECKSTYLE_ON: LineLength
+            final String groupIdPath = moduleArtifact.getGroupId().replace( '.', '/' );
+
+            return FixedStringSearchInterpolator.create(
+                     new MapBasedValueSource( Collections.singletonMap( "module.groupIdPath", groupIdPath ) ),
+                     new PrefixedObjectValueSource( "module.", moduleArtifact ),
+                     new PrefixedObjectValueSource( "module.", moduleArtifact.getArtifactHandler() ),
+                     new PrefixedObjectValueSource( "module.handler.", moduleArtifact.getArtifactHandler() ) );
         }
         else
         {
@@ -130,7 +126,6 @@ public final class AssemblyFormatUtils
 
     }
 
-    @Nonnull
     public static FixedStringSearchInterpolator artifactProjectInterpolator( final MavenProject artifactProject )
     {
         if ( artifactProject != null )
@@ -141,32 +136,31 @@ public final class AssemblyFormatUtils
                 vs = new PrefixedObjectValueSource( "artifact.", artifactProject.getArtifact() );
             }
 
+            final String groupIdPath = artifactProject.getGroupId().replace( '.', '/' );
+
             return FixedStringSearchInterpolator.createWithPermittedNulls(
+                new MapBasedValueSource( Collections.singletonMap( "artifact.groupIdPath", groupIdPath ) ),
                 new PrefixedObjectValueSource( "artifact.", artifactProject ),
                 new PrefixedPropertiesValueSource( "artifact.properties.", artifactProject.getProperties() ), vs );
-
-
         }
         else
         {
             return FixedStringSearchInterpolator.empty();
         }
-
-
     }
 
-    @Nonnull
-    public static FixedStringSearchInterpolator artifactInterpolator( @Nonnull final Artifact artifact )
+    public static FixedStringSearchInterpolator artifactInterpolator( final Artifact artifact )
     {
-        return FixedStringSearchInterpolator.create( new PrefixedObjectValueSource( "artifact.", artifact ),
-                                                     new PrefixedObjectValueSource( "artifact.",
-                                                                                    artifact.getArtifactHandler() ),
-                                                     new PrefixedObjectValueSource( "artifact.handler.",
-                                                                                    artifact.getArtifactHandler() ) );
+        final String groupIdPath = artifact.getGroupId().replace( '.', '/' );
+
+        return FixedStringSearchInterpolator.create( 
+                         new MapBasedValueSource( Collections.singletonMap( "artifact.groupIdPath", groupIdPath ) ),
+                         new PrefixedObjectValueSource( "artifact.", artifact ),
+                         new PrefixedObjectValueSource( "artifact.", artifact.getArtifactHandler() ),
+                         new PrefixedObjectValueSource( "artifact.handler.", artifact.getArtifactHandler() ) );
     }
 
 
-    @Nonnull
     public static FixedStringSearchInterpolator classifierRules( final Artifact artifact )
     {
         final Properties specialRules = new Properties();
@@ -296,8 +290,7 @@ public final class AssemblyFormatUtils
      */
 
 
-    @Nonnull
-    public static String fixRelativeRefs( @Nonnull String src )
+    public static String fixRelativeRefs( String src )
     {
         String value = src;
 
@@ -313,7 +306,7 @@ public final class AssemblyFormatUtils
 
             if ( value.contains( "." + sep ) )
             {
-                List<String> parts = new ArrayList<String>();
+                List<String> parts = new ArrayList<>();
                 parts.addAll( Arrays.asList( value.split( sep.replace( "\\", "\\\\" ) ) ) );
 
                 for ( ListIterator<String> it = parts.listIterator(); it.hasNext(); )
@@ -381,13 +374,12 @@ public final class AssemblyFormatUtils
      * <li>environment variables.</li>
      * </ol>
      */
-    public static String evaluateFileNameMapping( final String expression, @Nonnull final Artifact artifact,
-                                                  @Nullable final MavenProject mainProject,
-                                                  @Nullable final Artifact moduleArtifact,
-                                                  @Nonnull final AssemblerConfigurationSource configSource,
+    public static String evaluateFileNameMapping( final String expression, final Artifact artifact,
+                                                  /* nullable */ final MavenProject mainProject,
+                                                  /* nullable */  final Artifact moduleArtifact,
+                                                  final AssemblerConfigurationSource configSource,
                                                   FixedStringSearchInterpolator moduleProjectInterpolator,
                                                   FixedStringSearchInterpolator artifactProjectInterpolator )
-        throws AssemblyFormattingException
     {
         String value = expression;
 
@@ -480,15 +472,15 @@ public final class AssemblyFormatUtils
     {
         if ( Os.isFamily( Os.FAMILY_WINDOWS ) )
         {
-            if ( isLinuxRootReference( destDirectory ) )
+            if ( isUnixRootReference( destDirectory ) )
             {
-                logger.error( "OS=Windows and the assembly descriptor contains a *nix-specific root-relative-reference"
-                                  + " (starting with slash) " + destDirectory );
+                logger.error( "OS=Windows and the assembly descriptor contains a *nix-specific root-relative reference"
+                                  + " (starting with slash): " + destDirectory );
             }
             else if ( isWindowsPath( destDirectory ) )
             {
-                logger.warn( "The assembly descriptor contains a *nix-specific root-relative-reference"
-                                 + " (starting with slash). This is non-portable and will fail on windows "
+                logger.warn( "The assembly descriptor contains a Windows-specific directory reference"
+                                 + " (with a drive letter). This is not portable and will fail on non-Windows: "
                                  + destDirectory );
             }
         }
@@ -497,13 +489,14 @@ public final class AssemblyFormatUtils
             if ( isWindowsPath( destDirectory ) )
             {
                 logger.error(
-                    "OS=Non-Windows and the assembly descriptor contains a windows-specific directory reference"
-                        + " (with a drive letter) " + destDirectory );
+                    "OS=Non-Windows and the assembly descriptor contains a Windows-specific directory reference"
+                        + " (with a drive letter): " + destDirectory );
             }
-            else if ( isLinuxRootReference( destDirectory ) )
+            else if ( isUnixRootReference( destDirectory ) )
             {
-                logger.warn( "The assembly descriptor contains a filesystem-root relative reference,"
-                                 + " which is not cross platform compatible " + destDirectory );
+                logger.warn( "The assembly descriptor contains a *nix-specific root-relative reference"
+                                 + " (starting with slash). This is not portable and might fail on Windows: "
+                                 + destDirectory );
             }
         }
     }
@@ -513,7 +506,7 @@ public final class AssemblyFormatUtils
         return ( destDirectory != null && destDirectory.length() >= 2 && destDirectory.charAt( 1 ) == ':' );
     }
 
-    static boolean isLinuxRootReference( String destDirectory )
+    static boolean isUnixRootReference( String destDirectory )
     {
         return ( destDirectory != null && destDirectory.startsWith( "/" ) );
     }

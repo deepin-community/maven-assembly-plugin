@@ -19,80 +19,77 @@ package org.apache.maven.plugins.assembly.archive;
  * under the License.
  */
 
-import junit.framework.TestCase;
-import org.apache.maven.archiver.MavenArchiveConfiguration;
-import org.apache.maven.model.Model;
-import org.apache.maven.plugins.assembly.testutils.TestFileManager;
-import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.archiver.ArchiveFinalizer;
-import org.codehaus.plexus.archiver.Archiver;
-import org.codehaus.plexus.archiver.ArchiverException;
-import org.codehaus.plexus.archiver.jar.JarArchiver;
-import org.codehaus.plexus.util.IOUtil;
-import org.easymock.classextension.EasyMockSupport;
+import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.net.JarURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 
+import org.apache.maven.archiver.MavenArchiveConfiguration;
+import org.apache.maven.model.Model;
+import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.archiver.ArchiveFinalizer;
+import org.codehaus.plexus.archiver.jar.JarArchiver;
+import org.codehaus.plexus.util.IOUtil;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnitRunner;
+
+@RunWith( MockitoJUnitRunner.class )
 public class ManifestCreationFinalizerTest
-    extends TestCase
 {
 
-    private final TestFileManager fileManager = new TestFileManager( "manifest-finalizer.test.", ".jar" );
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    public void tearDown()
-        throws IOException
-    {
-        fileManager.cleanUp();
-    }
-
+    @Test
     public void testShouldDoNothingWhenArchiveConfigIsNull()
-        throws ArchiverException
+        throws Exception
     {
         new ManifestCreationFinalizer( null, null, null ).finalizeArchiveCreation( null );
     }
 
+    @Test
     public void testShouldDoNothingWhenArchiverIsNotJarArchiver()
-        throws ArchiverException
+        throws Exception
     {
-        EasyMockSupport mm = new EasyMockSupport();
-
-        MockAndControlForArchiver macArchiver = new MockAndControlForArchiver( mm );
-
         MavenProject project = new MavenProject( new Model() );
         MavenArchiveConfiguration config = new MavenArchiveConfiguration();
 
-        mm.replayAll();
-
-        new ManifestCreationFinalizer( null, project, config ).finalizeArchiveCreation( macArchiver.archiver );
-
-        mm.verifyAll();
+        new ManifestCreationFinalizer( null, project, config ).finalizeArchiveCreation( null );
     }
 
+    @Test
     public void testShouldAddManifestWhenArchiverIsJarArchiver()
-        throws ArchiverException, IOException
+        throws Exception
     {
         MavenProject project = new MavenProject( new Model() );
         MavenArchiveConfiguration config = new MavenArchiveConfiguration();
 
-        File tempDir = fileManager.createTempDir();
+        File tempDir = temporaryFolder.getRoot();
 
-        File manifestFile = fileManager.createFile( tempDir, "MANIFEST.MF", "Main-Class: Stuff\n" );
+        Path manifestFile = tempDir.toPath().resolve("MANIFEST.MF");
+        
+        Files.write( manifestFile, Arrays.asList( "Main-Class: Stuff\n" ), StandardCharsets.UTF_8 );
 
-        config.setManifestFile( manifestFile );
+        config.setManifestFile( manifestFile.toFile() );
 
         JarArchiver archiver = new JarArchiver();
 
         archiver.setArchiveFinalizers(
             Collections.<ArchiveFinalizer>singletonList( new ManifestCreationFinalizer( null, project, config ) ) );
 
-        File file = fileManager.createTempFile();
+        File file = temporaryFolder.newFile();
 
         archiver.setDestFile( file );
 
@@ -112,8 +109,9 @@ public class ManifestCreationFinalizerTest
         ( (JarURLConnection) resource.openConnection() ).getJarFile().close();
     }
 
+    @Test
     public void testShouldAddManifestEntriesWhenArchiverIsJarArchiver()
-        throws ArchiverException, IOException
+        throws Exception
     {
         MavenProject project = new MavenProject( new Model() );
         MavenArchiveConfiguration config = new MavenArchiveConfiguration();
@@ -128,7 +126,7 @@ public class ManifestCreationFinalizerTest
         archiver.setArchiveFinalizers(
             Collections.<ArchiveFinalizer>singletonList( new ManifestCreationFinalizer( null, project, config ) ) );
 
-        File file = fileManager.createTempFile();
+        File file = temporaryFolder.newFile();
 
         archiver.setDestFile( file );
 
@@ -142,24 +140,9 @@ public class ManifestCreationFinalizerTest
 
         IOUtil.copy( reader, writer );
 
-        System.out.println( "Test Manifest:\n\n" + writer );
-
         assertTrue( writer.toString().contains( testKey + ": " + testValue ) );
 
         // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4823678
         ( (JarURLConnection) resource.openConnection() ).getJarFile().close();
     }
-
-    private final class MockAndControlForArchiver
-    {
-        final Archiver archiver;
-
-
-        MockAndControlForArchiver( EasyMockSupport mm )
-        {
-
-            archiver = mm.createMock( Archiver.class );
-        }
-    }
-
 }

@@ -19,9 +19,28 @@ package org.apache.maven.plugins.assembly.io;
  * under the License.
  */
 
-import junit.framework.TestCase;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.model.Model;
 import org.apache.maven.plugins.assembly.AssemblerConfigurationSource;
 import org.apache.maven.plugins.assembly.InvalidAssemblerConfigurationException;
@@ -37,37 +56,22 @@ import org.apache.maven.plugins.assembly.model.Repository;
 import org.apache.maven.plugins.assembly.model.io.xpp3.AssemblyXpp3Writer;
 import org.apache.maven.plugins.assembly.model.io.xpp3.ComponentXpp3Reader;
 import org.apache.maven.plugins.assembly.model.io.xpp3.ComponentXpp3Writer;
-import org.apache.maven.plugins.assembly.testutils.TestFileManager;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
 import org.codehaus.plexus.interpolation.fixed.InterpolationState;
-import org.codehaus.plexus.logging.Logger;
-import org.codehaus.plexus.logging.console.ConsoleLogger;
-import org.codehaus.plexus.util.IOUtil;
-import org.easymock.classextension.EasyMockSupport;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import static org.easymock.EasyMock.expect;
-
+@RunWith( MockitoJUnitRunner.class )
 public class DefaultAssemblyReaderTest
-    extends TestCase
 {
-
-    private TestFileManager fileManager;
-
-    private EasyMockSupport mockManager;
-
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private AssemblerConfigurationSource configSource;
 
@@ -82,41 +86,22 @@ public class DefaultAssemblyReaderTest
         return new StringReader( sw.toString() );
     }
 
-    @Override
+    @Before
     public void setUp()
     {
-        fileManager = new TestFileManager( "assembly-reader.test.", ".xml" );
-        mockManager = new EasyMockSupport();
-
-        configSource = mockManager.createMock( AssemblerConfigurationSource.class );
-
-        ArtifactRepository localRepo = mockManager.createMock( ArtifactRepository.class );
-
-        expect( localRepo.getBasedir() ).andReturn( "/path/to/local/repo" ).anyTimes();
-        expect( configSource.getLocalRepository() ).andReturn( localRepo ).anyTimes();
-        expect( configSource.getRemoteRepositories() ).andReturn(
-            Collections.<ArtifactRepository>emptyList() ).anyTimes();
-        expect( configSource.getMavenSession() ).andReturn( null ).anyTimes();
+        configSource = mock( AssemblerConfigurationSource.class );
     }
 
-    @Override
-    public void tearDown()
-        throws IOException
-    {
-        fileManager.cleanUp();
-    }
-
+    @Test
     public void testIncludeSiteInAssembly_ShouldFailIfSiteDirectoryNonExistent()
-        throws IOException
+        throws Exception
     {
         final File siteDir = File.createTempFile( "assembly-reader.", ".test" );
         siteDir.delete();
 
-        expect( configSource.getSiteDirectory() ).andReturn( siteDir ).anyTimes();
+        when( configSource.getSiteDirectory() ).thenReturn( siteDir );
 
         final Assembly assembly = new Assembly();
-
-        mockManager.replayAll();
 
         try
         {
@@ -128,97 +113,17 @@ public class DefaultAssemblyReaderTest
         {
             // this should happen.
         }
-
-        mockManager.verifyAll();
     }
 
-    // public void testReadComponent_ShouldReadComponentFromXml()
-    // throws IOException, AssemblyReadException
-    // {
-    // Component component = new Component();
-    //
-    // FileSet fileSet = new FileSet();
-    // fileSet.setDirectory( "/dir" );
-    //
-    // component.addFileSet( fileSet );
-    //
-    // StringWriter sw = new StringWriter();
-    //
-    // ComponentXpp3Writer componentWriter = new ComponentXpp3Writer();
-    //
-    // componentWriter.write( sw, component );
-    //
-    // Component result = new DefaultAssemblyReader().readComponent( new StringReader( sw.toString() ) );
-    //
-    // List<FileSet> fileSets = result.getFileSets();
-    //
-    // assertNotNull( fileSets );
-    // assertEquals( 1, fileSets.size() );
-    //
-    // FileSet fs = (FileSet) fileSets.get( 0 );
-    //
-    // assertEquals( "/dir", fs.getDirectory() );
-    // }
-    //
-    // public void testGetComponentFromFile_ShouldReadComponent()
-    // throws IOException, AssemblyReadException
-    // {
-    // Component component = new Component();
-    //
-    // FileSet fileSet = new FileSet();
-    // fileSet.setDirectory( "/dir" );
-    //
-    // component.addFileSet( fileSet );
-    //
-    // File componentFile = fileManager.createTempFile();
-    //
-    // FileWriter writer = null;
-    //
-    // try
-    // {
-    // writer = new FileWriter( componentFile );
-    //
-    // ComponentXpp3Writer componentWriter = new ComponentXpp3Writer();
-    //
-    // componentWriter.write( writer, component );
-    // }
-    // finally
-    // {
-    // IOUtil.close( writer );
-    // }
-    //
-    // File basedir = componentFile.getParentFile();
-    // String filename = componentFile.getName();
-    //
-    // configSource.getBasedir();
-    // configSourceControl.setReturnValue( basedir );
-    //
-    // mockManager.replayAll();
-    //
-    // Component result = new DefaultAssemblyReader().getComponentFromFile( filename, configSource );
-    //
-    // List<FileSet> fileSets = result.getFileSets();
-    //
-    // assertNotNull( fileSets );
-    // assertEquals( 1, fileSets.size() );
-    //
-    // FileSet fs = (FileSet) fileSets.get( 0 );
-    //
-    // assertEquals( "/dir", fs.getDirectory() );
-    //
-    // mockManager.verifyAll();
-    // }
-
+    @Test
     public void testIncludeSiteInAssembly_ShouldAddSiteDirFileSetWhenDirExists()
-        throws IOException, InvalidAssemblerConfigurationException
+        throws Exception
     {
-        final File siteDir = fileManager.createTempDir();
+        final File siteDir = temporaryFolder.getRoot();
 
-        expect( configSource.getSiteDirectory() ).andReturn( siteDir ).anyTimes();
+        when( configSource.getSiteDirectory() ).thenReturn( siteDir );
 
         final Assembly assembly = new Assembly();
-
-        mockManager.replayAll();
 
         new DefaultAssemblyReader().includeSiteInAssembly( assembly, configSource );
 
@@ -230,10 +135,9 @@ public class DefaultAssemblyReaderTest
         final FileSet fs = fileSets.get( 0 );
 
         assertEquals( siteDir.getPath(), fs.getDirectory() );
-
-        mockManager.verifyAll();
     }
 
+    @Test
     public void testMergeComponentWithAssembly_ShouldAddOneFileSetToExistingListOfTwo()
     {
         final Assembly assembly = new Assembly();
@@ -272,6 +176,7 @@ public class DefaultAssemblyReaderTest
 
     }
 
+    @Test
     public void testMergeComponentWithAssembly_ShouldAddOneFileItemToExistingListOfTwo()
     {
         final Assembly assembly = new Assembly();
@@ -311,6 +216,7 @@ public class DefaultAssemblyReaderTest
 
     }
 
+    @Test
     public void testMergeComponentWithAssembly_ShouldAddOneDependencySetToExistingListOfTwo()
     {
         final Assembly assembly = new Assembly();
@@ -344,6 +250,7 @@ public class DefaultAssemblyReaderTest
         assertEquals( Artifact.SCOPE_SYSTEM, depSets.get( 2 ).getScope() );
     }
 
+    @Test
     public void testMergeComponentWithAssembly_ShouldAddOneRepositoryToExistingListOfTwo()
     {
         final Assembly assembly = new Assembly();
@@ -377,53 +284,7 @@ public class DefaultAssemblyReaderTest
         assertEquals( Artifact.SCOPE_SYSTEM, depSets.get( 2 ).getScope() );
     }
 
-    // FIXME: Deep merging should take place...
-    // public void
-    // testMergeComponentWithAssembly_ShouldMergeOneFileSetToOneOfExistingTwo()
-    // {
-    // Assembly assembly = new Assembly();
-    //
-    // FileSet fs = new FileSet();
-    // fs.setDirectory( "/dir" );
-    // fs.addInclude( "**/test.txt" );
-    //
-    // assembly.addFileSet( fs );
-    //
-    // fs = new FileSet();
-    // fs.setDirectory( "/other-dir" );
-    // assembly.addFileSet( fs );
-    //
-    // fs = new FileSet();
-    // fs.setDirectory( "/dir" );
-    // fs.addInclude( "**/components.txt" );
-    //
-    // Component component = new Component();
-    //
-    // component.addFileSet( fs );
-    //
-    // new DefaultAssemblyReader().mergeComponentWithAssembly( component,
-    // assembly );
-    //
-    // List<FileSet> fileSets = assembly.getFileSets();
-    //
-    // assertNotNull( fileSets );
-    // assertEquals( 2, fileSets.size() );
-    //
-    // FileSet rfs1 = (FileSet) fileSets.get( 0 );
-    // assertEquals( "/dir", rfs1.getDirectory() );
-    //
-    // List includes = rfs1.getIncludes();
-    //
-    // assertNotNull( includes );
-    // assertEquals( 2, includes.size() );
-    // assertTrue( includes.contains( "**/test.txt" ) );
-    // assertTrue( includes.contains( "**/components.txt" ) );
-    //
-    // FileSet rfs2 = (FileSet) fileSets.get( 1 );
-    // assertEquals( "/other-dir", rfs2.getDirectory() );
-    //
-    // }
-
+    @Test
     public void testMergeComponentWithAssembly_ShouldAddOneContainerDescriptorHandlerToExistingListOfTwo()
     {
         final Assembly assembly = new Assembly();
@@ -458,8 +319,9 @@ public class DefaultAssemblyReaderTest
         assertEquals( "three", it.next().getHandlerName() );
     }
 
+    @Test
     public void testMergeComponentsWithMainAssembly_ShouldAddOneFileSetToAssembly()
-        throws IOException, AssemblyReadException
+        throws Exception
     {
         final Component component = new Component();
 
@@ -468,23 +330,13 @@ public class DefaultAssemblyReaderTest
 
         component.addFileSet( fileSet );
 
-        final File componentFile = fileManager.createTempFile();
+        final File componentFile = temporaryFolder.newFile();
 
-        Writer writer = null;
-
-        try
+        try ( Writer writer = new OutputStreamWriter( new FileOutputStream( componentFile ), "UTF-8" ) )
         {
-            writer = new OutputStreamWriter( new FileOutputStream( componentFile ), "UTF-8" );
-
             final ComponentXpp3Writer componentWriter = new ComponentXpp3Writer();
 
             componentWriter.write( writer, component );
-            writer.close();
-            writer = null;
-        }
-        finally
-        {
-            IOUtil.close( writer );
         }
 
         final String filename = componentFile.getName();
@@ -496,15 +348,13 @@ public class DefaultAssemblyReaderTest
 
         final MavenProject project = new MavenProject();
 
-        expect( configSource.getProject() ).andReturn( project ).anyTimes();
-        expect( configSource.getBasedir() ).andReturn( basedir ).anyTimes();
+        when( configSource.getProject() ).thenReturn( project );
+        when( configSource.getBasedir() ).thenReturn( basedir );
         DefaultAssemblyArchiverTest.setupInterpolators( configSource );
         InterpolationState is = new InterpolationState();
         ComponentXpp3Reader.ContentTransformer componentIp =
             AssemblyInterpolator.componentInterpolator( FixedStringSearchInterpolator.create(), is,
-                                                        new ConsoleLogger( Logger.LEVEL_DEBUG, "console" ) );
-
-        mockManager.replayAll();
+                    LoggerFactory.getLogger( getClass() ) );
 
         new DefaultAssemblyReader().mergeComponentsWithMainAssembly( assembly, null, configSource, componentIp );
 
@@ -516,12 +366,11 @@ public class DefaultAssemblyReaderTest
         final FileSet fs = fileSets.get( 0 );
 
         assertEquals( "/dir", fs.getDirectory() );
-
-        mockManager.verifyAll();
     }
 
+    @Test
     public void testReadAssembly_ShouldReadAssemblyWithoutComponentsInterpolationOrSiteDirInclusion()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly = new Assembly();
         assembly.setId( "test" );
@@ -529,12 +378,11 @@ public class DefaultAssemblyReaderTest
         final Assembly result = doReadAssembly( assembly );
 
         assertEquals( assembly.getId(), result.getId() );
-
-        mockManager.verifyAll();
     }
 
+    @Test
     public void testReadAssembly_ShouldReadAssemblyWithSiteDirInclusionFromAssemblyWithoutComponentsOrInterpolation()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly = new Assembly();
         assembly.setId( "test" );
@@ -543,13 +391,13 @@ public class DefaultAssemblyReaderTest
 
         final StringReader sr = writeToStringReader( assembly );
 
-        final File siteDir = fileManager.createTempDir();
+        final File siteDir = temporaryFolder.newFolder( "site" );
 
-        expect( configSource.getSiteDirectory() ).andReturn( siteDir ).anyTimes();
+        when( configSource.getSiteDirectory() ).thenReturn( siteDir );
 
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
-        expect( configSource.getBasedir() ).andReturn( basedir ).anyTimes();
+        when( configSource.getBasedir() ).thenReturn( basedir );
 
         final Model model = new Model();
         model.setGroupId( "group" );
@@ -558,11 +406,10 @@ public class DefaultAssemblyReaderTest
 
         final MavenProject project = new MavenProject( model );
 
-        expect( configSource.getProject() ).andReturn( project ).anyTimes();
+        when( configSource.getProject() ).thenReturn( project );
 
         DefaultAssemblyArchiverTest.setupInterpolators( configSource );
 
-        mockManager.replayAll();
 
         final Assembly result = new DefaultAssemblyReader().readAssembly( sr, "testLocation", null, configSource );
 
@@ -573,14 +420,13 @@ public class DefaultAssemblyReaderTest
         assertEquals( 1, fileSets.size() );
 
         assertEquals( "/site", fileSets.get( 0 ).getOutputDirectory() );
-
-        mockManager.verifyAll();
     }
 
+    @Test
     public void testReadAssembly_ShouldReadAssemblyWithComponentWithoutSiteDirInclusionOrInterpolation()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
-        final File componentsFile = fileManager.createTempFile();
+        final File componentsFile = temporaryFolder.newFile();
 
         final File basedir = componentsFile.getParentFile();
         final String componentsFilename = componentsFile.getName();
@@ -592,18 +438,9 @@ public class DefaultAssemblyReaderTest
 
         component.addFileSet( fs );
 
-        Writer fw = null;
-
-        try
+        try ( Writer fw = new OutputStreamWriter( new FileOutputStream( componentsFile ), "UTF-8" ) )
         {
-            fw = new OutputStreamWriter( new FileOutputStream( componentsFile ), "UTF-8" );
             new ComponentXpp3Writer().write( fw, component );
-            fw.close();
-            fw = null;
-        }
-        finally
-        {
-            IOUtil.close( fw );
         }
 
         final Assembly assembly = new Assembly();
@@ -613,7 +450,7 @@ public class DefaultAssemblyReaderTest
 
         final StringReader sr = writeToStringReader( assembly );
 
-        expect( configSource.getBasedir() ).andReturn( basedir ).anyTimes();
+        when( configSource.getBasedir() ).thenReturn( basedir );
 
         final Model model = new Model();
         model.setGroupId( "group" );
@@ -621,11 +458,9 @@ public class DefaultAssemblyReaderTest
         model.setVersion( "version" );
 
         final MavenProject project = new MavenProject( model );
-        expect( configSource.getProject() ).andReturn( project ).anyTimes();
+        when( configSource.getProject() ).thenReturn( project );
 
         DefaultAssemblyArchiverTest.setupInterpolators( configSource );
-
-        mockManager.replayAll();
 
         final Assembly result = new DefaultAssemblyReader().readAssembly( sr, "testLocation", null, configSource );
 
@@ -636,15 +471,13 @@ public class DefaultAssemblyReaderTest
         assertEquals( 1, fileSets.size() );
 
         assertEquals( "/dir", fileSets.get( 0 ).getDirectory() );
-
-        mockManager.verifyAll();
     }
 
-    public void
-    testReadAssembly_ShouldReadAssemblyWithComponentInterpolationWithoutSiteDirInclusionOrAssemblyInterpolation()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+    @Test
+    public void testReadAssembly_ShouldReadAssemblyWithComponentInterpolationWithoutSiteDirInclusionOrAssemblyInterpolation()
+        throws Exception
     {
-        final File componentsFile = fileManager.createTempFile();
+        final File componentsFile = temporaryFolder.newFile();
 
         final File basedir = componentsFile.getParentFile();
         final String componentsFilename = componentsFile.getName();
@@ -656,18 +489,9 @@ public class DefaultAssemblyReaderTest
 
         component.addFileSet( fs );
 
-        Writer fw = null;
-
-        try
+        try( Writer fw = new OutputStreamWriter( new FileOutputStream( componentsFile ), "UTF-8" ) )
         {
-            fw = new OutputStreamWriter( new FileOutputStream( componentsFile ), "UTF-8" );
             new ComponentXpp3Writer().write( fw, component );
-            fw.close();
-            fw = null;
-        }
-        finally
-        {
-            IOUtil.close( fw );
         }
 
         final Assembly assembly = new Assembly();
@@ -677,7 +501,7 @@ public class DefaultAssemblyReaderTest
 
         final StringReader sr = writeToStringReader( assembly );
 
-        expect( configSource.getBasedir() ).andReturn( basedir ).atLeastOnce();
+        when( configSource.getBasedir() ).thenReturn( basedir );
 
         final Model model = new Model();
         model.setGroupId( "group" );
@@ -686,11 +510,9 @@ public class DefaultAssemblyReaderTest
 
         final MavenProject project = new MavenProject( model );
 
-        expect( configSource.getProject() ).andReturn( project ).atLeastOnce();
+        when( configSource.getProject() ).thenReturn( project );
 
         DefaultAssemblyArchiverTest.setupInterpolators( configSource );
-
-        mockManager.replayAll();
 
         final Assembly result = new DefaultAssemblyReader().readAssembly( sr, "testLocation", null, configSource );
 
@@ -701,12 +523,11 @@ public class DefaultAssemblyReaderTest
         assertEquals( 1, fileSets.size() );
 
         assertEquals( "group-dir", fileSets.get( 0 ).getDirectory() );
-
-        mockManager.verifyAll();
     }
 
+    @Test
     public void testReadAssembly_ShouldReadAssemblyWithInterpolationWithoutComponentsOrSiteDirInclusion()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly = new Assembly();
         assembly.setId( "${groupId}-assembly" );
@@ -714,8 +535,6 @@ public class DefaultAssemblyReaderTest
         final Assembly result = doReadAssembly( assembly );
 
         assertEquals( "group-assembly", result.getId() );
-
-        mockManager.verifyAll();
     }
 
     private Assembly doReadAssembly( Assembly assembly )
@@ -723,9 +542,9 @@ public class DefaultAssemblyReaderTest
     {
         final StringReader sr = writeToStringReader( assembly );
 
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
-        expect( configSource.getBasedir() ).andReturn( basedir ).anyTimes();
+        when( configSource.getBasedir() ).thenReturn( basedir );
 
         final Model model = new Model();
         model.setGroupId( "group" );
@@ -734,17 +553,16 @@ public class DefaultAssemblyReaderTest
 
         final MavenProject project = new MavenProject( model );
 
-        expect( configSource.getProject() ).andReturn( project ).anyTimes();
+        when( configSource.getProject() ).thenReturn( project );
 
         DefaultAssemblyArchiverTest.setupInterpolators( configSource );
-
-        mockManager.replayAll();
 
         return new DefaultAssemblyReader().readAssembly( sr, "testLocation", null, configSource );
     }
 
+    @Test
     public void testGetAssemblyFromDescriptorFile_ShouldReadAssembly()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly = new Assembly();
         assembly.setId( "test" );
@@ -754,62 +572,46 @@ public class DefaultAssemblyReaderTest
 
         assembly.addFileSet( fs );
 
-        final File assemblyFile = fileManager.createTempFile();
+        final File assemblyFile = temporaryFolder.newFile();
 
         final File basedir = assemblyFile.getParentFile();
 
-        expect( configSource.getBasedir() ).andReturn( basedir ).anyTimes();
+        when( configSource.getBasedir() ).thenReturn( basedir );
 
-        expect( configSource.getProject() ).andReturn( new MavenProject( new Model() ) ).anyTimes();
+        when( configSource.getProject() ).thenReturn( new MavenProject( new Model() ) );
 
         DefaultAssemblyArchiverTest.setupInterpolators( configSource );
 
-        Writer writer = null;
-        try
+        try ( Writer writer = new OutputStreamWriter( new FileOutputStream( assemblyFile ), "UTF-8" ) )
         {
-            writer = new OutputStreamWriter( new FileOutputStream( assemblyFile ), "UTF-8" );
             new AssemblyXpp3Writer().write( writer, assembly );
-            writer.close();
-            writer = null;
         }
-        finally
-        {
-            IOUtil.close( writer );
-        }
-
-        mockManager.replayAll();
 
         final Assembly result = new DefaultAssemblyReader().getAssemblyFromDescriptorFile( assemblyFile, configSource );
 
         assertEquals( assembly.getId(), result.getId() );
-
-        mockManager.verifyAll();
     }
 
+    @Test
     public void testGetAssemblyForDescriptorReference_ShouldReadBinaryAssemblyRef()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
-        expect( configSource.getBasedir() ).andReturn( basedir ).anyTimes();
+        when( configSource.getBasedir() ).thenReturn( basedir );
 
-        expect( configSource.getProject() ).andReturn( new MavenProject( new Model() ) ).anyTimes();
-
-        expect( configSource.isIgnoreMissingDescriptor() ).andReturn( false ).anyTimes();
+        when( configSource.getProject() ).thenReturn( new MavenProject( new Model() ) );
 
         DefaultAssemblyArchiverTest.setupInterpolators( configSource );
-
-        mockManager.replayAll();
 
         final Assembly result = new DefaultAssemblyReader().getAssemblyForDescriptorReference( "bin", configSource );
 
         assertEquals( "bin", result.getId() );
-
-        mockManager.verifyAll();
     }
 
+    @Test
     public void testReadAssemblies_ShouldGetAssemblyDescriptorFromSingleFile()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly = new Assembly();
         assembly.setId( "test" );
@@ -819,7 +621,7 @@ public class DefaultAssemblyReaderTest
 
         assembly.addFileSet( fs );
 
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
         final List<String> files = writeAssembliesToFile( Collections.singletonList( assembly ), basedir );
 
@@ -835,13 +637,11 @@ public class DefaultAssemblyReaderTest
         assertEquals( assembly.getId(), result.getId() );
     }
 
+    @Test
     public void testReadAssemblies_ShouldFailWhenSingleDescriptorFileMissing()
-        throws IOException, InvalidAssemblerConfigurationException
+        throws Exception
     {
-        final File basedir = fileManager.createTempDir();
-
-        final File assemblyFile = new File( basedir, "test.xml" );
-        assemblyFile.delete();
+        final File basedir = temporaryFolder.getRoot();
 
         try
         {
@@ -855,13 +655,11 @@ public class DefaultAssemblyReaderTest
         }
     }
 
+    @Test
     public void testReadAssemblies_ShouldIgnoreMissingSingleDescriptorFileWhenIgnoreIsConfigured()
-        throws IOException, InvalidAssemblerConfigurationException
+        throws Exception
     {
-        final File basedir = fileManager.createTempDir();
-
-        final File assemblyFile = new File( basedir, "test.xml" );
-        assemblyFile.delete();
+        final File basedir = temporaryFolder.getRoot();
 
         try
         {
@@ -874,8 +672,9 @@ public class DefaultAssemblyReaderTest
         }
     }
 
+    @Test
     public void testReadAssemblies_ShouldGetAssemblyDescriptorFromFileArray()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly1 = new Assembly();
         assembly1.setId( "test" );
@@ -883,16 +682,16 @@ public class DefaultAssemblyReaderTest
         final Assembly assembly2 = new Assembly();
         assembly2.setId( "test2" );
 
-        final List<Assembly> assemblies = new ArrayList<Assembly>();
+        final List<Assembly> assemblies = new ArrayList<>();
         assemblies.add( assembly1 );
         assemblies.add( assembly2 );
 
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
         final List<String> files = writeAssembliesToFile( assemblies, basedir );
 
         final List<Assembly> results =
-            performReadAssemblies( basedir, files.toArray( new String[files.size()] ), null, null );
+            performReadAssemblies( basedir, files.toArray( new String[0] ), null, null );
 
         assertNotNull( results );
         assertEquals( 2, results.size() );
@@ -906,10 +705,11 @@ public class DefaultAssemblyReaderTest
         assertEquals( assembly2.getId(), result2.getId() );
     }
 
+    @Test
     public void testReadAssemblies_ShouldGetAssemblyDescriptorFromMultipleRefs()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
         final List<Assembly> assemblies =
             performReadAssemblies( basedir, null, new String[]{ "bin", "src" }, null );
@@ -926,8 +726,9 @@ public class DefaultAssemblyReaderTest
         assertEquals( "src", result2.getId() );
     }
 
+    @Test
     public void testReadAssemblies_ShouldGetAssemblyDescriptorFromDirectory()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly1 = new Assembly();
         assembly1.setId( "test" );
@@ -935,11 +736,11 @@ public class DefaultAssemblyReaderTest
         final Assembly assembly2 = new Assembly();
         assembly2.setId( "test2" );
 
-        final List<Assembly> assemblies = new ArrayList<Assembly>();
+        final List<Assembly> assemblies = new ArrayList<>();
         assemblies.add( assembly1 );
         assemblies.add( assembly2 );
 
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
         writeAssembliesToFile( assemblies, basedir );
 
@@ -957,8 +758,9 @@ public class DefaultAssemblyReaderTest
         assertEquals( assembly2.getId(), result2.getId() );
     }
 
+    @Test
     public void testReadAssemblies_ShouldGetTwoAssemblyDescriptorsFromDirectoryWithThreeFiles()
-        throws IOException, AssemblyReadException, InvalidAssemblerConfigurationException
+        throws Exception
     {
         final Assembly assembly1 = new Assembly();
         assembly1.setId( "test" );
@@ -966,15 +768,17 @@ public class DefaultAssemblyReaderTest
         final Assembly assembly2 = new Assembly();
         assembly2.setId( "test2" );
 
-        final List<Assembly> assemblies = new ArrayList<Assembly>();
+        final List<Assembly> assemblies = new ArrayList<>();
         assemblies.add( assembly1 );
         assemblies.add( assembly2 );
 
-        final File basedir = fileManager.createTempDir();
+        final File basedir = temporaryFolder.getRoot();
 
         writeAssembliesToFile( assemblies, basedir );
 
-        fileManager.createFile( basedir, "readme.txt", "This is just a readme file, not a descriptor." );
+        Files.write( basedir.toPath().resolve( "readme.txt" ),
+                     Arrays.asList( "This is just a readme file, not a descriptor." ), 
+                     StandardCharsets.UTF_8 );
 
         final List<Assembly> results = performReadAssemblies( basedir, null, null, basedir );
 
@@ -993,23 +797,15 @@ public class DefaultAssemblyReaderTest
     private List<String> writeAssembliesToFile( final List<Assembly> assemblies, final File dir )
         throws IOException
     {
-        final List<String> files = new ArrayList<String>();
+        final List<String> files = new ArrayList<>();
 
         for ( final Assembly assembly : assemblies )
         {
             final File assemblyFile = new File( dir, assembly.getId() + ".xml" );
 
-            Writer writer = null;
-            try
+            try ( Writer writer = new OutputStreamWriter( new FileOutputStream( assemblyFile ), "UTF-8" ) )
             {
-                writer = new OutputStreamWriter( new FileOutputStream( assemblyFile ), "UTF-8" );
                 new AssemblyXpp3Writer().write( writer, assembly );
-                writer.close();
-                writer = null;
-            }
-            finally
-            {
-                IOUtil.close( writer );
             }
 
             files.add( assemblyFile.getAbsolutePath() );
@@ -1030,26 +826,27 @@ public class DefaultAssemblyReaderTest
                                                   final boolean ignoreMissing )
         throws AssemblyReadException, InvalidAssemblerConfigurationException
     {
-        expect( configSource.getDescriptorReferences() ).andReturn( descriptorRefs );
+        when( configSource.getDescriptorReferences() ).thenReturn( descriptorRefs );
 
-        expect( configSource.getDescriptors() ).andReturn( descriptors );
+        when( configSource.getDescriptors() ).thenReturn( descriptors );
 
-        expect( configSource.getDescriptorSourceDirectory() ).andReturn( descriptorDir );
+        when( configSource.getDescriptorSourceDirectory() ).thenReturn( descriptorDir );
 
-        expect( configSource.getBasedir() ).andReturn( basedir ).anyTimes();
+        when( configSource.getBasedir() ).thenReturn( basedir ); //.atLeastOnce();
 
-        expect( configSource.getProject() ).andReturn( new MavenProject( new Model() ) ).anyTimes();
+        if ( descriptors == null && descriptorRefs == null && descriptorDir == null )
+        {
+            when( configSource.isIgnoreMissingDescriptor() ).thenReturn( ignoreMissing ); //.atLeastOnce();
+        }
+        
+        if ( !ignoreMissing )
+        {
+            when( configSource.getProject() ).thenReturn( new MavenProject( new Model() ) ); //.atLeastOnce();
 
-        expect( configSource.isIgnoreMissingDescriptor() ).andReturn( ignoreMissing ).anyTimes();
-        DefaultAssemblyArchiverTest.setupInterpolators( configSource );
+            DefaultAssemblyArchiverTest.setupInterpolators( configSource );
+        }
 
-        mockManager.replayAll();
-
-        final List<Assembly> assemblies = new DefaultAssemblyReader().readAssemblies( configSource );
-
-        mockManager.verifyAll();
-
-        return assemblies;
+        return new DefaultAssemblyReader().readAssemblies( configSource );
     }
 
 }

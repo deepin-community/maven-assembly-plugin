@@ -25,16 +25,15 @@ import org.apache.maven.plugins.assembly.format.AssemblyFormattingException;
 import org.apache.maven.plugins.assembly.model.Assembly;
 
 import java.io.File;
+import java.util.Date;
 
 /**
  * Creates an archive
  *
- * @version $Id: AssemblyArchiver.java 1727509 2016-01-29 10:08:42Z khmarbaise $
+ *
  */
 public interface AssemblyArchiver
 {
-    String ROLE = AssemblyArchiver.class.getName();
-
     /**
      * Create the assembly archive. Generally:
      * <ol>
@@ -55,12 +54,13 @@ public interface AssemblyArchiver
      * @param configSource          The {@link org.apache.maven.plugins.assembly.AssemblerConfigurationSource}
      * @param recompressZippedFiles recompress zipped files.
      * @param mergeManifestMode     How to handle already existing Manifest files (skip, merge, mergewithoutmain)
+     * @param sourceDateEpoch       Timestamp for reproducible archive entries
      * @return The resulting archive file.
      * @throws ArchiveCreationException                                                 when creation fails
      * @throws org.apache.maven.plugins.assembly.format.AssemblyFormattingException     when formatting fails
-     * @throws org.apache.maven.plugins.assembly.InvalidAssemblerConfigurationException when the configurationis bad
+     * @throws org.apache.maven.plugins.assembly.InvalidAssemblerConfigurationException when the configuration is bad
      */
     File createArchive( Assembly assembly, String fullName, String format, AssemblerConfigurationSource configSource,
-                        boolean recompressZippedFiles, String mergeManifestMode )
+                        boolean recompressZippedFiles, String mergeManifestMode, Date sourceDateEpoch )
         throws ArchiveCreationException, AssemblyFormattingException, InvalidAssemblerConfigurationException;
 }

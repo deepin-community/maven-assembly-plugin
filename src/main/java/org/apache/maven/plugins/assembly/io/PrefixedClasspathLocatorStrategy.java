@@ -19,12 +19,8 @@ package org.apache.maven.plugins.assembly.io;
  * under the License.
  */
 
-import org.apache.maven.shared.io.location.ClasspathResourceLocatorStrategy;
-import org.apache.maven.shared.io.location.Location;
-import org.apache.maven.shared.io.logging.MessageHolder;
-
 /**
- * @version $Id: PrefixedClasspathLocatorStrategy.java 1691831 2015-07-19 15:06:13Z rfscholte $
+ *
  */
 class PrefixedClasspathLocatorStrategy
     extends ClasspathResourceLocatorStrategy
@@ -32,7 +28,7 @@ class PrefixedClasspathLocatorStrategy
 
     private final String prefix;
 
-    public PrefixedClasspathLocatorStrategy( String prefix )
+    PrefixedClasspathLocatorStrategy( String prefix )
     {
         this.prefix = formatPrefix( prefix );
     }

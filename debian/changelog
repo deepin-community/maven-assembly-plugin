@@ -1,3 +1,36 @@
+maven-assembly-plugin (3.4.2-2) unstable; urgency=medium
+
+  * Team upload.
+  * Removed the unused dependency on libmaven-repository-builder-java
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Sat, 26 Oct 2024 10:04:11 +0200
+
+maven-assembly-plugin (3.4.2-1) unstable; urgency=medium
+
+  * Team upload
+
+  [ tony mancill ]
+  * Update debian/watch to scan github repo
+  * Update Vcs URLs to point to Salsa
+  * Set "Rules-Requires-Root: no" in debian/control
+  * Remove get-orig-source target from debian/rules
+  * Remove debian/orig-tar.sh
+  * Freshen years in debian/copyright
+
+  [ Emmanuel Bourg ]
+  * New upstream release
+    - Refreshed the patch
+    - Depend on libmaven-archiver-java (>= 3.5)
+    - Depend on libplexus-archiver-java (>= 4.4)
+    - Depend on libmaven-common-artifact-filters-java (>= 3.3.1)
+    - Depend on sisu-maven-plugin instead of plexus-component-metadata
+    - Depend on libmaven-parent-java
+  * Removed Damien Raude-Morvan from the uploaders (Closes: #889416)
+  * Standards-Version updated to 4.6.2
+  * Switch to debhelper level 13
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Thu, 12 Jan 2023 12:15:38 +0100
+
 maven-assembly-plugin (3.1.0-1) unstable; urgency=medium
 
   * Team upload.

@@ -19,59 +19,47 @@ package org.apache.maven.plugins.assembly.archive.phase;
  * under the License.
  */
 
-import junit.framework.TestCase;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import org.apache.maven.model.Model;
-import org.apache.maven.plugins.assembly.archive.ArchiveCreationException;
+import org.apache.maven.plugins.assembly.AssemblerConfigurationSource;
 import org.apache.maven.plugins.assembly.archive.DefaultAssemblyArchiverTest;
-import org.apache.maven.plugins.assembly.archive.task.testutils.MockAndControlForAddFileSetsTask;
-import org.apache.maven.plugins.assembly.format.AssemblyFormattingException;
 import org.apache.maven.plugins.assembly.model.Assembly;
 import org.apache.maven.plugins.assembly.model.FileSet;
-import org.apache.maven.plugins.assembly.testutils.TestFileManager;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.logging.Logger;
-import org.easymock.EasyMock;
-import org.easymock.classextension.EasyMockSupport;
+import org.codehaus.plexus.archiver.Archiver;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import java.io.IOException;
-
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.expect;
-
+@RunWith( MockitoJUnitRunner.class )
 public class FileSetAssemblyPhaseTest
-    extends TestCase
 {
-
-    final EasyMockSupport mm = new EasyMockSupport();
-
-    private final TestFileManager fileManager = new TestFileManager( "file-set-assembly.test.", "" );
-
-    @Override
-    public void tearDown()
-        throws IOException
+    private FileSetAssemblyPhase phase;
+    
+    @Before
+    public void setUp() 
     {
-        fileManager.cleanUp();
+        this.phase = new FileSetAssemblyPhase();
     }
 
+    @Test
     public void testShouldNotFailWhenNoFileSetsSpecified()
-        throws ArchiveCreationException, AssemblyFormattingException
+        throws Exception
     {
         final Assembly assembly = new Assembly();
-
         assembly.setId( "test" );
 
-        final MockAndControlForLogger macLogger = new MockAndControlForLogger();
-        final MockAndControlForAddFileSetsTask macTask = new MockAndControlForAddFileSetsTask( mm, fileManager );
-
-        mm.replayAll();
-
-        createPhase( macLogger ).execute( assembly, macTask.archiver, macTask.configSource );
-
-        mm.verifyAll();
+        this.phase.execute( assembly, null, null );
     }
 
+    @Test
     public void testShouldAddOneFileSet()
-        throws ArchiveCreationException, AssemblyFormattingException
+        throws Exception
     {
         final Assembly assembly = new Assembly();
 
@@ -86,64 +74,34 @@ public class FileSetAssemblyPhaseTest
 
         assembly.addFileSet( fs );
 
-        final MockAndControlForLogger macLogger = new MockAndControlForLogger();
-        final MockAndControlForAddFileSetsTask macTask = new MockAndControlForAddFileSetsTask( mm, fileManager );
-
-        macTask.expectGetArchiveBaseDirectory();
-
         final MavenProject project = new MavenProject( new Model() );
-
-        macLogger.expectError( true, true );
+        project.setGroupId( "GROUPID" );
 
         final int dirMode = Integer.parseInt( "777", 8 );
         final int fileMode = Integer.parseInt( "777", 8 );
 
         final int[] modes = { -1, -1, dirMode, fileMode };
 
-        macTask.expectAdditionOfSingleFileSet( project, "final-name", false, modes, 1, true );
+        // the logger sends a debug message with this info inside the addFileSet(..) method..
+        final Archiver archiver = mock( Archiver.class );
+        when( archiver.getOverrideDirectoryMode() ).thenReturn( modes[0] );
+        when( archiver.getOverrideFileMode() ).thenReturn( modes[1] );
+    
+        final AssemblerConfigurationSource configSource = mock( AssemblerConfigurationSource.class );
+        when( configSource.getProject() ).thenReturn( project );
+        when( configSource.getFinalName() ).thenReturn( "final-name" );
+        
+        DefaultAssemblyArchiverTest.setupInterpolators( configSource, project );
 
-        DefaultAssemblyArchiverTest.setupInterpolators( macTask.configSource );
+        this.phase.execute( assembly, archiver, configSource );
 
-        mm.replayAll();
+        // result of easymock migration, should be assert of expected result instead of verifying methodcalls
+        verify( configSource ).getArchiveBaseDirectory();
+        verify( configSource, atLeastOnce() ).getFinalName();
+        verify( configSource, atLeastOnce() ).getMavenSession();
+        verify( configSource, atLeastOnce() ).getProject();
 
-        createPhase( macLogger ).execute( assembly, macTask.archiver, macTask.configSource );
-
-        mm.verifyAll();
+        verify( archiver ).getOverrideDirectoryMode();
+        verify( archiver ).getOverrideFileMode();
     }
-
-    private FileSetAssemblyPhase createPhase( final MockAndControlForLogger macLogger )
-    {
-        final FileSetAssemblyPhase phase = new FileSetAssemblyPhase();
-
-        phase.enableLogging( macLogger.logger );
-
-        return phase;
-    }
-
-    private final class MockAndControlForLogger
-    {
-        final Logger logger;
-
-        MockAndControlForLogger()
-        {
-            logger = mm.createMock( Logger.class );
-        }
-
-        public void expectError( final boolean debugCheck, final boolean debugEnabled )
-        {
-            if ( debugCheck )
-            {
-                expect( logger.isDebugEnabled() ).andReturn( debugEnabled ).anyTimes();
-            }
-
-            logger.debug( (String) anyObject() );
-            EasyMock.expectLastCall().anyTimes();
-            logger.warn( (String) anyObject() );
-            EasyMock.expectLastCall().anyTimes();
-            logger.error( (String) anyObject() );
-            EasyMock.expectLastCall().anyTimes();
-        }
-
-    }
-
 }

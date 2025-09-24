@@ -28,7 +28,7 @@ import java.io.File;
 import java.util.List;
 
 /**
- * @version $Id: AssemblyReader.java 1685315 2015-06-13 20:10:29Z krosenvold $
+ *
  */
 public interface AssemblyReader
 {

@@ -19,57 +19,56 @@ package org.apache.maven.plugins.assembly.archive.archiver;
  * under the License.
  */
 
-import org.apache.maven.plugins.assembly.testutils.TestFileManager;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ArchiverException;
+import org.codehaus.plexus.archiver.FileSet;
 import org.codehaus.plexus.archiver.diags.TrackingArchiver;
 import org.codehaus.plexus.archiver.jar.JarArchiver;
 import org.codehaus.plexus.archiver.util.DefaultFileSet;
 import org.codehaus.plexus.components.io.fileselectors.FileInfo;
 import org.codehaus.plexus.components.io.fileselectors.FileSelector;
-import org.codehaus.plexus.logging.Logger;
-import org.codehaus.plexus.logging.console.ConsoleLogger;
-import org.codehaus.plexus.util.FileUtils;
-import org.easymock.EasyMock;
-import org.easymock.classextension.EasyMockSupport;
-import org.junit.AfterClass;
+import org.codehaus.plexus.components.io.functions.InputStreamTransformer;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.annotation.Nonnull;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.easymock.EasyMock.anyObject;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
+@RunWith( MockitoJUnitRunner.class )
 public class AssemblyProxyArchiverTest
 {
-
-    private static final TestFileManager fileManager = new TestFileManager( "massembly-proxyArchiver", "" );
-
-    private static final Logger logger = new ConsoleLogger( Logger.LEVEL_DEBUG, "test" );
-
-    @AfterClass
-    public static void cleanupFiles()
-    {
-        fileManager.cleanUp();
-    }
-
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    
     @Test( timeout = 5000 )
     public void addFileSet_SkipWhenSourceIsAssemblyWorkDir()
         throws IOException, ArchiverException
     {
-        final File sources = fileManager.createTempDir();
+        final File sources = temporaryFolder.getRoot();
 
         final File workdir = new File( sources, "workdir" );
 
         final TrackingArchiver tracker = new TrackingArchiver();
         final AssemblyProxyArchiver archiver =
-            new AssemblyProxyArchiver( "", tracker, null, null, null, workdir, logger );
+            new AssemblyProxyArchiver( "", tracker, null, null, null, workdir );
 
         archiver.setForced( true );
 
@@ -85,17 +84,19 @@ public class AssemblyProxyArchiverTest
     public void addFileSet_addExcludeWhenSourceContainsAssemblyWorkDir()
         throws IOException, ArchiverException
     {
-        final File sources = fileManager.createTempDir();
+        final File sources = temporaryFolder.getRoot();
 
         final File workdir = new File( sources, "workdir" );
         workdir.mkdir();
 
-        fileManager.createFile( sources, "test-included.txt", "This is included" );
-        fileManager.createFile( workdir, "test-excluded.txt", "This is excluded" );
+        Files.write( sources.toPath().resolve( "test-included.txt" ), Arrays.asList( "This is included" ),
+                     StandardCharsets.UTF_8 );
+        Files.write( workdir.toPath().resolve( "test-excluded.txt" ), Arrays.asList( "This is excluded" ),
+                     StandardCharsets.UTF_8 );
 
         final TrackingArchiver tracker = new TrackingArchiver();
         final AssemblyProxyArchiver archiver =
-            new AssemblyProxyArchiver( "", tracker, null, null, null, workdir, logger );
+            new AssemblyProxyArchiver( "", tracker, null, null, null, workdir );
 
         archiver.setForced( true );
 
@@ -116,34 +117,22 @@ public class AssemblyProxyArchiverTest
     public void addFile_NoPerms_CallAcceptFilesOnlyOnce()
         throws IOException, ArchiverException
     {
-        EasyMockSupport mm = new EasyMockSupport();
-        final Archiver delegate = mm.createMock( Archiver.class );
-
-        delegate.addFile( (File) anyObject(), (String) anyObject() );
-        EasyMock.expectLastCall().anyTimes();
-
-        delegate.setForced( true );
-        EasyMock.expectLastCall().anyTimes();
+        final Archiver delegate = mock( Archiver.class );
 
         final CounterSelector counter = new CounterSelector( true );
-        final List<FileSelector> selectors = new ArrayList<FileSelector>();
+        final List<FileSelector> selectors = new ArrayList<>();
         selectors.add( counter );
 
-        mm.replayAll();
-
         final AssemblyProxyArchiver archiver =
-            new AssemblyProxyArchiver( "", delegate, null, selectors, null, new File( "." ),
-                                       new ConsoleLogger( Logger.LEVEL_DEBUG, "test" ) );
-
+            new AssemblyProxyArchiver( "", delegate, null, selectors, null, new File( "." ) );
         archiver.setForced( true );
 
-        final File inputFile = fileManager.createTempFile();
-
+        final File inputFile = temporaryFolder.newFile();
         archiver.addFile( inputFile, "file.txt" );
 
         assertEquals( 1, counter.getCount() );
-
-        mm.verifyAll();
+        verify( delegate ).addFile( inputFile, "file.txt" );
+        verify( delegate ).setForced( true );
     }
 
     @Test
@@ -152,23 +141,21 @@ public class AssemblyProxyArchiverTest
     {
         final Archiver delegate = new JarArchiver();
 
-        final File output = fileManager.createTempFile();
+        final File output = temporaryFolder.newFile();
 
         delegate.setDestFile( output );
 
         final CounterSelector counter = new CounterSelector( true );
-        final List<FileSelector> selectors = new ArrayList<FileSelector>();
+        final List<FileSelector> selectors = new ArrayList<>();
         selectors.add( counter );
 
         final AssemblyProxyArchiver archiver =
-            new AssemblyProxyArchiver( "", delegate, null, selectors, null, new File( "." ),
-                                       new ConsoleLogger( Logger.LEVEL_DEBUG, "test" ) );
+            new AssemblyProxyArchiver( "", delegate, null, selectors, null, new File( "." ) );
 
         archiver.setForced( true );
 
-        final File dir = fileManager.createTempDir();
-        FileUtils.cleanDirectory( dir );
-        fileManager.createFile( dir, "file.txt", "This is a test." );
+        final File dir = temporaryFolder.newFolder();
+        Files.write( dir.toPath().resolve( "file.txt" ), Arrays.asList( "This is a test." ), StandardCharsets.UTF_8 );
 
         archiver.addDirectory( dir );
 
@@ -176,6 +163,35 @@ public class AssemblyProxyArchiverTest
 
         assertEquals( 1, counter.getCount() );
     }
+    
+    @Test
+    public void assemblyWorkDir() 
+    {
+        final Archiver delegate = mock( Archiver.class );
+        final List<FileSelector> selectors = new ArrayList<>();
+
+        final AssemblyProxyArchiver archiver =
+            new AssemblyProxyArchiver( "prefix", delegate, null, selectors, null,
+                                       new File( temporaryFolder.getRoot(), "module1" ) );
+        
+        FileSet fileSet = mock( FileSet.class );
+        when( fileSet.getDirectory() ).thenReturn( temporaryFolder.getRoot() ); 
+        when( fileSet.getStreamTransformer() ).thenReturn( mock( InputStreamTransformer.class ) );
+        
+        archiver.addFileSet( fileSet );
+
+        ArgumentCaptor<FileSet> delFileSet = ArgumentCaptor.forClass( FileSet.class );
+        verify( delegate ).addFileSet( delFileSet.capture() );
+        
+        assertThat( delFileSet.getValue().getDirectory(), is( fileSet.getDirectory() ) );
+        assertThat( delFileSet.getValue().getExcludes(), is( new String[] { "module1" } ) );
+        assertThat( delFileSet.getValue().getFileMappers(), is( fileSet.getFileMappers() ) );
+        assertThat( delFileSet.getValue().getFileSelectors(), is( fileSet.getFileSelectors() ) );
+        assertThat( delFileSet.getValue().getIncludes(), is(  new String[0] ) );
+        assertThat( delFileSet.getValue().getPrefix(), is( "prefix/" ) );
+        assertThat( delFileSet.getValue().getStreamTransformer(), is( fileSet.getStreamTransformer() ) );
+    }
+    
 
     private static final class CounterSelector
         implements FileSelector
@@ -195,7 +211,7 @@ public class AssemblyProxyArchiverTest
             return count;
         }
 
-        public boolean isSelected( final @Nonnull FileInfo fileInfo )
+        public boolean isSelected( final FileInfo fileInfo )
             throws IOException
         {
             if ( fileInfo.isFile() )

@@ -19,7 +19,16 @@ package org.apache.maven.plugins.assembly.mojos;
  * under the License.
  */
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
+
 import org.apache.maven.archiver.MavenArchiveConfiguration;
+import org.apache.maven.archiver.MavenArchiver;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
@@ -41,29 +50,20 @@ import org.apache.maven.plugins.assembly.utils.InterpolationConstants;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
 import org.apache.maven.shared.filtering.MavenReaderFilter;
-import org.apache.maven.shared.utils.cli.CommandLineUtils;
 import org.codehaus.plexus.configuration.PlexusConfiguration;
 import org.codehaus.plexus.interpolation.fixed.FixedStringSearchInterpolator;
 import org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource;
 import org.codehaus.plexus.interpolation.fixed.PropertiesBasedValueSource;
-
-import javax.annotation.Nonnull;
-import java.io.File;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
+import org.codehaus.plexus.util.cli.CommandLineUtils;
 
 /**
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  * @author <a href="mailto:vincent.siveton@gmail.com">Vincent Siveton</a>
- * @version $Id: AbstractAssemblyMojo.java 1773447 2016-12-09 17:57:17Z michaelo $
- * @threadSafe
  */
-public abstract class AbstractAssemblyMojo
-    extends AbstractMojo
-    implements AssemblerConfigurationSource
+public abstract class AbstractAssemblyMojo extends AbstractMojo implements AssemblerConfigurationSource
 {
-    protected FixedStringSearchInterpolator commanndLinePropertiesInterpolator;
+
+    protected FixedStringSearchInterpolator commandLinePropertiesInterpolator;
 
     protected FixedStringSearchInterpolator envInterpolator;
 
@@ -86,8 +86,8 @@ public abstract class AbstractAssemblyMojo
     private String encoding;
 
     /**
-     * Expressions preceded with this String won't be interpolated.
-     * If you use "\" as the escape string then \${foo} will be replaced with ${foo}.
+     * Expressions preceded with this String won't be interpolated. If you use "\" as the escape string then \${foo}
+     * will be replaced with ${foo}.
      *
      * @since 2.4
      */
@@ -122,6 +122,7 @@ public abstract class AbstractAssemblyMojo
     private ArtifactRepository localRepository;
 
     /**
+     *
      */
     @Parameter( defaultValue = "${project.remoteArtifactRepositories}", required = true, readonly = true )
     private List<ArtifactRepository> remoteRepositories;
@@ -151,11 +152,9 @@ public abstract class AbstractAssemblyMojo
     private File workDirectory;
 
     /**
-     * Specifies the formats of the assembly.
-     * Multiple formats can be supplied and the Assembly Plugin will generate an archive for each desired formats.
-     * When deploying your project, all file formats specified will also be deployed. A format is specified by supplying
-     * one of the following
-     * values in a &lt;format&gt; subelement:
+     * Specifies the formats of the assembly. Multiple formats can be supplied and the Assembly Plugin will generate an
+     * archive for each desired formats. When deploying your project, all file formats specified will also be deployed.
+     * A format is specified by supplying one of the following values in a &lt;format&gt; subelement:
      * <ul>
      * <li><em>dir</em> - Creates a directory</li>
      * <li><em>zip</em> - Creates a ZIP file format</li>
@@ -176,8 +175,8 @@ public abstract class AbstractAssemblyMojo
     private String[] descriptors;
 
     /**
-     * A list of references to assembly descriptors available on the plugin's classpath. The default classpath
-     * includes these built-in descriptors: <code>bin</code>, <code>jar-with-dependencies</code>, <code>src</code>, and
+     * A list of references to assembly descriptors available on the plugin's classpath. The default classpath includes
+     * these built-in descriptors: <code>bin</code>, <code>jar-with-dependencies</code>, <code>src</code>, and
      * <code>project</code>. You can add others by adding dependencies
      * to the plugin.
      */
@@ -248,25 +247,32 @@ public abstract class AbstractAssemblyMojo
 
     /**
      * This is a set of instructions to the archive builder, especially for building .jar files. It enables you to
-     * specify a Manifest file for the jar, in addition to other options.
-     * See <a href="http://maven.apache.org/shared/maven-archiver/index.html">Maven Archiver Reference</a>.
+     * specify a Manifest file for the jar, in addition to other options. See
+     * <a href="http://maven.apache.org/shared/maven-archiver/index.html">Maven Archiver Reference</a>.
      */
     @Parameter
     private MavenArchiveConfiguration archive;
 
     /**
-     * The list of extra filter properties files to be used along with System properties, project
-     * properties, and filter properties files specified in the POM build/filters section, which
-     * should be used for the filtering during the current mojo execution. <br/>
-     * Normally, these will be configured from a plugin's execution section, to provide a different
-     * set of filters for a particular execution.
+     * The list of extra filter properties files to be used along with System properties, project properties, and filter
+     * properties files specified in the POM build/filters section, which should be used for the filtering during the
+     * current mojo execution. <br/> Normally, these will be configured from a plugin's execution section, to provide a
+     * different set of filters for a particular execution.
      */
     @Parameter
     private List<String> filters;
+    
+    /**
+     * A set of additional properties to use for filtering
+     * 
+     * @since 3.3.0
+     */
+    @Parameter
+    private Properties additionalProperties;
 
     /**
-     * If True (default) then the ${project.build.filters} are also used in addition to any
-     * further filters defined for the Assembly.
+     * If True (default) then the ${project.build.filters} are also used in addition to any further filters defined for
+     * the Assembly.
      *
      * @since 2.4.2
      */
@@ -282,8 +288,8 @@ public abstract class AbstractAssemblyMojo
     private boolean attach;
 
     /**
-     * Indicates if zip archives (jar,zip etc) being added to the assembly should be compressed again.
-     * Compressing again can result in smaller archive size, but gives noticeably longer execution time.
+     * Indicates if zip archives (jar,zip etc) being added to the assembly should be compressed again. Compressing again
+     * can result in smaller archive size, but gives noticeably longer execution time.
      *
      * @since 2.4
      */
@@ -292,17 +298,20 @@ public abstract class AbstractAssemblyMojo
 
     /**
      * sets the merge manifest mode in the JarArchiver
+     *
      * @since 3
      */
     @Parameter
     private String mergeManifestMode;
 
     /**
+     *
      */
     @Component
     private AssemblyArchiver assemblyArchiver;
 
     /**
+     *
      */
     @Component
     private AssemblyReader assemblyReader;
@@ -310,14 +319,17 @@ public abstract class AbstractAssemblyMojo
     /**
      * Allows additional configuration options that are specific to a particular type of archive format. This is
      * intended to capture an XML configuration that will be used to reflectively setup the options on the archiver
-     * instance. <br/>
-     * For instance, to direct an assembly with the "ear" format to use a particular deployment descriptor, you should
-     * specify the following for the archiverConfig value in your plugin configuration: <br/>
+     * instance. <br/> To see the possible options for archiver configuration visit the
+     * <a href="https://codehaus-plexus.github.io/plexus-archiver/apidocs/org/codehaus/plexus/archiver/Archiver.html">
+     * Plexus Archiver Documentation</a> <br/> For instance, to direct an assembly with the "ear" format to use a
+     * particular deployment descriptor, you should specify the following for the archiverConfig value in your plugin
+     * configuration: <br/>
      * <p/>
      * <p/>
      * <pre>
      * &lt;appxml&gt;${project.basedir}/somepath/app.xml&lt;/appxml&gt;
      * </pre>
+     * <p/>
      *
      * @since 2.2-beta-3
      */
@@ -346,12 +358,8 @@ public abstract class AbstractAssemblyMojo
     private boolean updateOnly;
 
     /**
-     * <p>
-     * will use the jvm chmod, this is available for user and all level group level will be ignored As of
-     * assembly-plugin 2.5, this flag is ignored for users of java7+
-     * </p>
-     *
      * @since 2.2
+     * @deprecated Not used anymore and will be removed in future version
      */
     @Parameter( property = "assembly.useJvmChmod", defaultValue = "false" )
     private boolean useJvmChmod;
@@ -395,18 +403,54 @@ public abstract class AbstractAssemblyMojo
     @Parameter
     private List<String> delimiters;
 
+    /**
+     * Timestamp for reproducible output archive entries, either formatted as ISO 8601
+     * <code>yyyy-MM-dd'T'HH:mm:ssXXX</code> or as an int representing seconds since the epoch (like
+     * <a href="https://reproducible-builds.org/docs/source-date-epoch/">SOURCE_DATE_EPOCH</a>).
+     *
+     * @since 3.2.0
+     */
+    @Parameter( defaultValue = "${project.build.outputTimestamp}" )
+    private String outputTimestamp;
+
+    /**
+     * Override of user ID in archive type which can store it.
+     */
+    @Parameter
+    private Integer overrideUid;
+
+    /**
+     * Override of user name in archive type which can store it.
+     */
+    @Parameter
+    private String overrideUserName;
+
+
+    /**
+     * Override of group ID in archive type which can store it.
+     */
+    @Parameter
+    private Integer overrideGid;
+
+    /**
+     * Override of group name in archive type which can store it.
+     */
+    @Parameter
+    private String overrideGroupName;
+
+
     public static FixedStringSearchInterpolator mainProjectInterpolator( MavenProject mainProject )
     {
         if ( mainProject != null )
         {
             // 5
             return FixedStringSearchInterpolator.create(
-                new org.codehaus.plexus.interpolation.fixed.PrefixedObjectValueSource(
-                    InterpolationConstants.PROJECT_PREFIXES, mainProject, true ),
+                    new org.codehaus.plexus.interpolation.fixed.PrefixedObjectValueSource(
+                            InterpolationConstants.PROJECT_PREFIXES, mainProject, true ),
 
-                // 6
-                new org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource(
-                    InterpolationConstants.PROJECT_PROPERTIES_PREFIXES, mainProject.getProperties(), true ) );
+                    // 6
+                    new org.codehaus.plexus.interpolation.fixed.PrefixedPropertiesValueSource(
+                            InterpolationConstants.PROJECT_PROPERTIES_PREFIXES, mainProject.getProperties(), true ) );
         }
         else
         {
@@ -416,12 +460,9 @@ public abstract class AbstractAssemblyMojo
 
     /**
      * Create the binary distribution.
-     *
-     * @throws org.apache.maven.plugin.MojoExecutionException
      */
     @Override
-    public void execute()
-        throws MojoExecutionException, MojoFailureException
+    public void execute() throws MojoExecutionException, MojoFailureException
     {
 
         if ( skipAssembly )
@@ -449,11 +490,14 @@ public abstract class AbstractAssemblyMojo
         catch ( final InvalidAssemblerConfigurationException e )
         {
             throw new MojoFailureException( assemblyReader, e.getMessage(),
-                                            "Mojo configuration is invalid: " + e.getMessage() );
+                    "Mojo configuration is invalid: " + e.getMessage() );
         }
 
         // TODO: include dependencies marked for distribution under certain formats
         // TODO: how, might we plug this into an installer, such as NSIS?
+
+        MavenArchiver mavenArchiver = new MavenArchiver();
+        Date outputDate = mavenArchiver.parseOutputTimestamp( outputTimestamp );
 
         boolean warnedAboutMainProjectArtifact = false;
         for ( final Assembly assembly : assemblies )
@@ -470,14 +514,13 @@ public abstract class AbstractAssemblyMojo
                 if ( effectiveFormats == null || effectiveFormats.size() == 0 )
                 {
                     throw new MojoFailureException(
-                        "No formats specified in the execution parameters or the assembly descriptor." );
+                            "No formats specified in the execution parameters or the assembly descriptor." );
                 }
 
                 for ( final String format : effectiveFormats )
                 {
-                    final File destFile =
-                        assemblyArchiver.createArchive( assembly, fullName, format,
-                            this, isRecompressZippedFiles(), getMergeManifestMode() );
+                    final File destFile = assemblyArchiver.createArchive( assembly, fullName, format, this,
+                            isRecompressZippedFiles(), getMergeManifestMode(), outputDate );
 
                     final MavenProject project = getProject();
                     final String type = project.getArtifact().getType();
@@ -497,9 +540,10 @@ public abstract class AbstractAssemblyMojo
                                 message.append( "Configuration option 'appendAssemblyId' is set to false." );
                                 message.append( "\nInstead of attaching the assembly file: " ).append( destFile );
                                 message.append( ", it will become the file for main project artifact." );
-                                message.append( "\nNOTE: If multiple descriptors or descriptor-formats are provided "
-                                                    + "for this project, the value of this file will be "
-                                                    + "non-deterministic!" );
+                                message.append(
+                                        "\nNOTE: If multiple descriptors or descriptor-formats are provided "
+                                                + "for this project, the value of this file will be "
+                                                + "non-deterministic!" );
 
                                 getLog().warn( message );
                                 warnedAboutMainProjectArtifact = true;
@@ -508,8 +552,9 @@ public abstract class AbstractAssemblyMojo
                             final File existingFile = project.getArtifact().getFile();
                             if ( ( existingFile != null ) && existingFile.exists() )
                             {
-                                getLog().warn( "Replacing pre-existing project main-artifact file: " + existingFile
-                                                   + "\nwith assembly file: " + destFile );
+                                getLog().warn(
+                                        "Replacing pre-existing project main-artifact file: "
+                                                + existingFile + "\nwith assembly file: " + destFile );
                             }
 
                             project.getArtifact().setFile( destFile );
@@ -521,25 +566,21 @@ public abstract class AbstractAssemblyMojo
                     }
                     else if ( attach )
                     {
-                        getLog().warn( "Assembly file: " + destFile + " is not a regular file (it may be a directory). "
-                                           + "It cannot be attached to the project build for installation or "
-                                           + "deployment." );
+                        getLog().warn(
+                                "Assembly file: " + destFile + " is not a regular file (it may be a directory). "
+                                        + "It cannot be attached to the project build for installation or "
+                                        + "deployment." );
                     }
                 }
             }
-            catch ( final ArchiveCreationException e )
-            {
-                throw new MojoExecutionException( "Failed to create assembly: " + e.getMessage(), e );
-            }
-            catch ( final AssemblyFormattingException e )
+            catch ( final ArchiveCreationException | AssemblyFormattingException e )
             {
                 throw new MojoExecutionException( "Failed to create assembly: " + e.getMessage(), e );
             }
             catch ( final InvalidAssemblerConfigurationException e )
             {
                 throw new MojoFailureException( assembly, "Assembly is incorrectly configured: " + assembly.getId(),
-                                                "Assembly: " + assembly.getId() + " is not configured correctly: "
-                                                    + e.getMessage() );
+                        "Assembly: " + assembly.getId() + " is not configured correctly: " + e.getMessage() );
             }
         }
     }
@@ -583,10 +624,17 @@ public abstract class AbstractAssemblyMojo
 
     private FixedStringSearchInterpolator createEnvInterpolator()
     {
-        PrefixedPropertiesValueSource envProps = new PrefixedPropertiesValueSource( Collections.singletonList( "env." ),
-                                                                                    CommandLineUtils.getSystemEnvVars(
-                                                                                        false ), true );
-        return FixedStringSearchInterpolator.create( envProps );
+        try
+        {
+            PrefixedPropertiesValueSource envProps =
+                    new PrefixedPropertiesValueSource( Collections.singletonList( "env." ),
+                            CommandLineUtils.getSystemEnvVars( false ), true );
+            return FixedStringSearchInterpolator.create( envProps );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     /**
@@ -752,6 +800,11 @@ public abstract class AbstractAssemblyMojo
     {
         this.filters = filters;
     }
+    
+    public Properties getAdditionalProperties()
+    {
+        return additionalProperties;
+    }
 
     @Override
     public boolean isIncludeProjectBuildFilters()
@@ -844,6 +897,7 @@ public abstract class AbstractAssemblyMojo
     }
 
     @Override
+    @Deprecated
     public boolean isUseJvmChmod()
     {
         return useJvmChmod;
@@ -889,19 +943,17 @@ public abstract class AbstractAssemblyMojo
     }
 
     @Override
-    @Nonnull
-    public FixedStringSearchInterpolator getCommandLinePropsInterpolator()
+    public synchronized FixedStringSearchInterpolator getCommandLinePropsInterpolator()
     {
-        if ( commanndLinePropertiesInterpolator == null )
+        if ( commandLinePropertiesInterpolator == null )
         {
-            this.commanndLinePropertiesInterpolator = createCommandLinePropertiesInterpolator();
+            this.commandLinePropertiesInterpolator = createCommandLinePropertiesInterpolator();
         }
-        return commanndLinePropertiesInterpolator;
+        return commandLinePropertiesInterpolator;
     }
 
     @Override
-    @Nonnull
-    public FixedStringSearchInterpolator getEnvInterpolator()
+    public synchronized FixedStringSearchInterpolator getEnvInterpolator()
     {
         if ( envInterpolator == null )
         {
@@ -911,8 +963,7 @@ public abstract class AbstractAssemblyMojo
     }
 
     @Override
-    @Nonnull
-    public FixedStringSearchInterpolator getRepositoryInterpolator()
+    public synchronized FixedStringSearchInterpolator getRepositoryInterpolator()
     {
         if ( rootInterpolator == null )
         {
@@ -922,8 +973,7 @@ public abstract class AbstractAssemblyMojo
     }
 
     @Override
-    @Nonnull
-    public FixedStringSearchInterpolator getMainProjectInterpolator()
+    public synchronized FixedStringSearchInterpolator getMainProjectInterpolator()
     {
         if ( mainProjectInterpolator == null )
         {
@@ -932,4 +982,27 @@ public abstract class AbstractAssemblyMojo
         return mainProjectInterpolator;
     }
 
+    @Override
+    public Integer getOverrideUid()
+    {
+        return this.overrideUid;
+    }
+
+    @Override
+    public String getOverrideUserName()
+    {
+        return this.overrideUserName;
+    }
+
+    @Override
+    public Integer getOverrideGid()
+    {
+        return this.overrideGid;
+    }
+
+    @Override
+    public String getOverrideGroupName()
+    {
+        return this.overrideGroupName;
+    }
 }
